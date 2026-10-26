@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { db } from '../db';
 import { estimateMinutes, foodDaySummaries, getActiveProgram, nextProgramDay, openSession, planFor, startSession, targetsOn } from '../data';
 import { Icon } from '../icons';
+import { ScreenTip } from '../tips';
 import { PlanList } from '../plan';
 import { addDays, isoWeekday, weekDates, weekStart } from '../rules/dates';
 import { Loading, fmt, fmtDate } from '../ui';
@@ -123,8 +124,13 @@ export default function Today() {
           <h1>Today</h1>
           <p className="meta">{fmtDate(date, { weekday: 'long', day: 'numeric', month: 'long' })} · {isTrainingDay ? 'training day' : 'rest day'}</p>
         </div>
-        <Link to="/settings" className="btn ghost icon-btn mobile-only" aria-label="Settings"><Icon name="settings" /></Link>
+        <div className="row mobile-only" style={{ gap: 0 }}>
+          <Link to="/help" className="btn ghost icon-btn" aria-label="Help"><Icon name="help" /></Link>
+          <Link to="/settings" className="btn ghost icon-btn" aria-label="Settings"><Icon name="settings" /></Link>
+        </div>
       </header>
+
+      <ScreenTip id="today" />
 
       {session}
 

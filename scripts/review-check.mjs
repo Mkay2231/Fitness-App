@@ -6,6 +6,7 @@
 //   npm run check:review   (in another)
 
 import { chromium } from 'playwright-core';
+import { completeSetup } from './lib/setup.mjs';
 
 const URL = process.env.APP_URL || 'http://localhost:5173/';
 const step = (msg) => console.log(`✓ ${msg}`);
@@ -17,13 +18,7 @@ page.on('pageerror', (e) => errors.push(e.message));
 
 try {
   await page.goto(URL);
-  await page.getByRole('button', { name: 'Male', exact: true }).click();
-  await page.getByLabel('Age').fill('25');
-  await page.getByLabel('Height (cm)').fill('175');
-  await page.getByLabel('Weight (kg)').fill('62');
-  await page.getByRole('radio', { name: /Some experience/ }).click();
-  await page.getByRole('button', { name: 'Save and start' }).click();
-  await page.getByRole('heading', { name: 'Today' }).waitFor();
+  await completeSetup(page, { experience: /Some experience/ });
 
   // Last week: Mon and Fri trained, Wed missed; two lifts dropped vs the week before;
   // short sleep; flat weight for 14 days; 14 complete food days at target.

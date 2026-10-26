@@ -5,6 +5,7 @@ import { db, type SetLog } from '../db';
 import { nowISO, planFor, replaceInProgram, swapForSession, type PlanRow } from '../data';
 import { alternativesFor } from '../rules/library';
 import { Icon } from '../icons';
+import { HelpLink, ScreenTip } from '../tips';
 import { useOnline } from '../install';
 import { lastDate, lastText, restText, targetText, wt } from '../plan';
 import type { Suggestion } from '../rules/progression';
@@ -238,6 +239,8 @@ export default function Workout() {
         <div className="wk-progress" aria-hidden="true"><span style={{ transform: `scaleX(${planned ? Math.min(1, total / planned) : 0})` }} /></div>
       </header>
 
+      <ScreenTip id="workout" />
+
       {saver.state === 'error' && (
         <div className="offline" role="alert" style={{ background: 'var(--danger-soft)', color: 'var(--danger)' }}><Icon name="alert" size="sm" />{saver.message}</div>
       )}
@@ -370,7 +373,7 @@ function ExerciseBlock({ row, finished, draft, setDraft, extraOpen, openExtra, j
         <div className="ex-head-row">
           <div>
             <h2 id={`ex-${ex.id}`}>{ex.name}</h2>
-            <p className="ex-rx">{slot.sets} sets · {slot.repMin}–{slot.repMax} reps · rest {restText(slot.restSec)} · stop ~{slot.targetRir} reps short</p>
+            <p className="ex-rx">{slot.sets} sets · {slot.repMin}–{slot.repMax} reps · rest {restText(slot.restSec)} · leave ~{slot.targetRir} in reserve</p>
             {row.swappedFrom && <p className="ex-note"><Icon name="info" size="sm" />Swapped today for {row.swappedFrom.name}. Your programme is unchanged.</p>}
             {slot.note && !row.swappedFrom && <p className="ex-note"><Icon name="info" size="sm" />{slot.note}</p>}
           </div>
@@ -444,7 +447,7 @@ function ExerciseBlock({ row, finished, draft, setDraft, extraOpen, openExtra, j
 function RirPicker({ value, onChange, idPrefix }: { value: number | null; onChange: (v: number | null) => void; idPrefix: string }) {
   return (
     <>
-      <span className="rir-label" id={`${idPrefix}-rir`}>Reps in reserve (optional): how many more could you have done?</span>
+      <span className="rir-label" id={`${idPrefix}-rir`}>How many more reps could you have done? (optional) <HelpLink term="rir" /></span>
       <div className="rir" role="group" aria-labelledby={`${idPrefix}-rir`}>
         {RIR_OPTIONS.map((v) => (
           // Tapping the selected value again clears it: effort is optional.
@@ -551,7 +554,7 @@ function DoneSet({ index, set, prevText, bodyweight, unit, perHand, justDone, on
       <span className="set-no" role="cell">{index + 1}</span>
       <span className="set-prev" role="cell">{prevText}</span>
       <span className="set-value" role="cell">{wt(u, set.weightKg)}{perHand && <small>each</small>}</span>
-      <span className="set-value" role="cell">{set.reps}<small>RIR {set.rir === 4 ? '4+' : set.rir ?? '–'}</small></span>
+      <span className="set-value" role="cell">{set.reps}<small>{set.rir === null ? 'no effort logged' : `${set.rir === 4 ? '4+' : set.rir} left`}</small></span>
       <span role="cell">
         <button className="check-btn" aria-label={`Edit set ${index + 1}: ${set.weightKg === null ? 'bodyweight' : wt(u, set.weightKg)} by ${set.reps}`} onClick={() => setEditing(draftFrom(set, u))}>
           <Icon name="check" />

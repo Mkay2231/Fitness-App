@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { db } from '../db';
 import { nowISO, retarget, reviewFor, targetsOn, today } from '../data';
 import { Icon } from '../icons';
+import { HelpLink, ScreenTip } from '../tips';
 import { addDays, weekStart } from '../rules/dates';
 import type { PerformanceChange } from '../rules/performance';
 import { MIN_COMPLETE_DAYS, type Recommendation } from '../rules/review';
@@ -56,6 +57,8 @@ export default function Review() {
         </div>
       </header>
 
+      <ScreenTip id="review" />
+
       <section className="panel" aria-labelledby="brief-h">
         <h2 id="brief-h">This week in brief</h2>
         <ul className="reasons" style={{ color: 'var(--text)', fontSize: '1rem' }}>{summary.map((s) => <li key={s}>{s}</li>)}</ul>
@@ -94,7 +97,7 @@ export default function Review() {
             </article>
           );
         })}
-        <p className="hint">Suggestions come from fixed rules, not AI. Plan changes only happen when you accept them.</p>
+        <p className="hint">Suggestions come from fixed rules, not AI. Plan changes only happen when you accept them. <HelpLink term="suggestions">How suggestions work</HelpLink></p>
       </section>
 
       <section className="panel" aria-labelledby="training-h">
@@ -136,7 +139,7 @@ export default function Review() {
         <h2 id="body-h">Body</h2>
         <div className="kpis" style={{ marginTop: 8 }}>
           <div className="kpi"><div className="v">{weight.avg7 !== null ? u.w(weight.avg7) : '–'}</div><div className="l">7-day average weight{weight.prevAvg7 !== null && weight.avg7 !== null ? ` (${weight.avg7 - weight.prevAvg7 >= 0 ? '+' : '−'}${fmt(Math.abs(u.wNum(weight.avg7) - u.wNum(weight.prevAvg7)), 2)} vs a week earlier)` : ''}</div></div>
-          <div className="kpi"><div className="v">{weight.rateKgPerWeek !== null ? u.rate(weight.rateKgPerWeek) : '–'}</div><div className="l">14-day weight trend</div></div>
+          <div className="kpi"><div className="v">{weight.rateKgPerWeek !== null ? u.rate(weight.rateKgPerWeek) : '–'}</div><div className="l">14-day weight trend (per week) <HelpLink term="trend" /></div></div>
         </div>
         <p className="hint">Scale weight moves with water, food and fat as well as muscle, so a rising weight on its own doesn't show muscle gain. Lift trends and measurements together give a better picture. {weight.weighInsThisWeek} weigh-in{weight.weighInsThisWeek === 1 ? '' : 's'} this week.</p>
         {measurements.length > 0 && (

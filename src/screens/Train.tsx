@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { db } from '../db';
 import { estimateMinutes, getActiveProgram, nextProgramDay, openSession, planFor, startSession } from '../data';
 import { Icon } from '../icons';
+import { ScreenTip } from '../tips';
 import { PlanList, rxText } from '../plan';
 import { Loading, fmtDate } from '../ui';
 import { WEEKDAYS } from './Onboarding';
@@ -41,6 +42,8 @@ export default function Train() {
         <h1>Train</h1>
         <p className="meta">{program.name} · {days}</p>
       </header>
+
+      <ScreenTip id="train" />
 
       <section className="panel session-panel" aria-labelledby="next-h">
         <div className="head">

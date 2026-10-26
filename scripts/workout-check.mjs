@@ -6,6 +6,7 @@
 //   npm run check:workout  (in another)
 
 import { chromium } from 'playwright-core';
+import { completeSetup } from './lib/setup.mjs';
 
 const URL = process.env.APP_URL || 'http://localhost:5173/';
 const step = (msg) => console.log(`✓ ${msg}`);
@@ -28,13 +29,7 @@ async function skipRest() {
 try {
   // Setup
   await page.goto(URL);
-  await page.getByRole('button', { name: 'Male', exact: true }).click();
-  await page.getByLabel('Age').fill('25');
-  await page.getByLabel('Height (cm)').fill('175');
-  await page.getByLabel('Weight (kg)').fill('62');
-  await page.getByRole('radio', { name: /Some experience/ }).click();
-  await page.getByRole('button', { name: 'Save and start' }).click();
-  await page.getByRole('heading', { name: 'Today' }).waitFor();
+  await completeSetup(page, { experience: /Some experience/ });
 
   // Start session A
   await page.getByRole('button', { name: /Start workout|Train today instead/ }).click();
@@ -55,7 +50,7 @@ try {
   await lp.getByRole('button', { name: '2', exact: true }).click();
   await lp.getByRole('button', { name: 'Log set 3' }).click();
   await lp.getByRole('button', { name: /Edit set 3: 40 by 12/ }).waitFor();
-  expect(await lp.getByText('RIR –').count() === 1, 'set 3 should have no RIR recorded');
+  expect(await lp.getByText('no effort logged').count() === 1, 'set 3 should have no reps in reserve recorded');
   step('logged 3 sets (weight, reps, optional RIR) and the rest timer started');
 
   // Edit and correct

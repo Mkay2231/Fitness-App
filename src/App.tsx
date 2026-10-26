@@ -14,6 +14,7 @@ import Food from './screens/Food';
 import Progress from './screens/Progress';
 import Review from './screens/Review';
 import SettingsScreen from './screens/Settings';
+import Help from './screens/Help';
 
 const NAV: { to: string; label: string; icon: IconName }[] = [
   { to: '/', label: 'Today', icon: 'today' },
@@ -31,6 +32,7 @@ function Sidebar() {
         <NavLink key={n.to} to={n.to} end={n.to === '/'}><Icon name={n.icon} />{n.label}</NavLink>
       ))}
       <div className="spacer" />
+      <NavLink to="/help"><Icon name="help" />Help</NavLink>
       <NavLink to="/settings"><Icon name="settings" />Settings</NavLink>
     </nav>
   );
@@ -71,6 +73,7 @@ export default function App() {
           <Route path="/progress" element={<Progress />} />
           <Route path="/review" element={<Review />} />
           <Route path="/settings" element={<SettingsScreen />} />
+          <Route path="/help" element={<Help />} />
         </Routes>
       </main>
       {/* The active workout is a focused screen: its dock replaces the tab bar on phones. */}

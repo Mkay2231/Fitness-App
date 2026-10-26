@@ -24,6 +24,8 @@ const paths: Record<string, ReactNode> = {
   alert: <><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5v5.5M12 16.5v.5" /></>,
   info: <><circle cx="12" cy="12" r="8.5" /><path d="M12 11v5.5M12 7.5v.5" /></>,
   play: <path d="M8 5.5v13l10-6.5-10-6.5Z" />,
+  lock: <><rect x="5" y="10.5" width="14" height="10" rx="2.5" /><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" /></>,
+  help: <><circle cx="12" cy="12" r="8.5" /><path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.4c-.6.3-1 .8-1 1.4v.5M12 16.6v.4" /></>,
   scale: <><rect x="3.5" y="4" width="17" height="16.5" rx="3" /><path d="M8 9.5a6 6 0 0 1 8 0L13 12" /></>,
 };
 

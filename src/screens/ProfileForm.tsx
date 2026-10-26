@@ -129,34 +129,148 @@ function Field({ id, label, why, error, children }: { id?: string; label: string
   );
 }
 
-export default function ProfileForm({ initial, askWeight, submitLabel, onSubmit, aside }: {
+export type SectionId = 'goal' | 'units' | 'body' | 'training' | 'food';
+export const ALL_SECTIONS: SectionId[] = ['goal', 'units', 'body', 'training', 'food'];
+
+/** Which section each validated field lives in, so a step only checks its own answers. */
+export const FIELD_SECTION: Partial<Record<keyof ProfileDraft, SectionId>> = {
+  sex: 'body', age: 'body', height: 'body', weight: 'body', trainingDays: 'training',
+};
+
+export type Errors = Partial<Record<keyof ProfileDraft, string>>;
+
+/** Draft state with unit switching that converts what's already typed. */
+export function useProfileDraft(initial: ProfileDraft) {
+  const [d, setD] = useState(initial);
+  const set = <K extends keyof ProfileDraft>(k: K, v: ProfileDraft[K]) => setD((cur) => ({ ...cur, [k]: v }));
+  function setWeightUnit(u: WeightUnit) {
+    setD((cur) => {
+      if (u === cur.weightUnit) return cur;
+      const v = n(cur.weight);
+      return { ...cur, weightUnit: u, weight: cur.weight && v > 0 ? String(tidy(toWeight(fromWeight(v, cur.weightUnit), u), 1)) : cur.weight };
+    });
+  }
+  function setLengthUnit(u: LengthUnit) {
+    setD((cur) => {
+      if (u === cur.lengthUnit) return cur;
+      const v = n(cur.height);
+      return { ...cur, lengthUnit: u, height: cur.height && v > 0 ? String(tidy(toLength(fromLength(v, cur.lengthUnit), u), 1)) : cur.height };
+    });
+  }
+  return { d, set, setWeightUnit, setLengthUnit };
+}
+
+type Draft = ReturnType<typeof useProfileDraft>;
+
+/** The profile questions. `only` limits which sections render (one step of setup). */
+export function ProfileSections({ draft, shown, askWeight, only = ALL_SECTIONS }: {
+  draft: Draft; shown: Errors; askWeight: boolean; only?: SectionId[];
+}) {
+  const { d, set, setWeightUnit, setLengthUnit } = draft;
+  const has = (s: SectionId) => only.includes(s);
+  return (
+    <>
+      {has('goal') && (
+        <section className="panel" aria-labelledby="goal-h">
+          <h2 id="goal-h">Goal</h2>
+          <p className="hint" style={{ marginTop: 2, marginBottom: 12 }}>Sets how much extra you eat and the weight change the weekly review aims for. Most beginners do well with steady gain.</p>
+          <Choice name="Goal" options={GOALS} value={d.gainRatePctPerWeek} onChange={(v) => set('gainRatePctPerWeek', v)} />
+        </section>
+      )}
+
+      {has('units') && (
+        <section className="panel" aria-labelledby="units-h">
+          <h2 id="units-h">Units</h2>
+          <div className="form-row" style={{ marginTop: 12 }}>
+            <Field label="Weight"><Chips label="Weight unit" value={d.weightUnit} onChange={setWeightUnit} options={[{ value: 'kg', label: 'kg' }, { value: 'lb', label: 'lb' }]} /></Field>
+            <Field label="Height and measurements"><Chips label="Length unit" value={d.lengthUnit} onChange={setLengthUnit} options={[{ value: 'cm', label: 'cm' }, { value: 'in', label: 'in' }]} /></Field>
+          </div>
+        </section>
+      )}
+
+      {has('body') && (
+        <section className="panel" aria-labelledby="body-h">
+          <h2 id="body-h">About you</h2>
+          <p className="hint" style={{ marginTop: 2, marginBottom: 12 }}>Used only to estimate how much to eat to grow. It stays on this phone.</p>
+          <Field label="Sex" error={shown.sex}>
+            <Chips label="Sex" value={d.sex} onChange={(v) => set('sex', v)} options={[{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }]} />
+          </Field>
+          <div className="form-row">
+            <Field id="p-age" label="Age" error={shown.age}>
+              <input id="p-age" inputMode="numeric" autoComplete="off" value={d.age} aria-invalid={!!shown.age} onChange={(e) => set('age', e.target.value.replace(/\D/g, ''))} />
+            </Field>
+            <Field id="p-height" label={`Height (${d.lengthUnit})`} error={shown.height}>
+              <input id="p-height" inputMode="decimal" autoComplete="off" value={d.height} aria-invalid={!!shown.height} onChange={(e) => set('height', e.target.value)} />
+            </Field>
+            {askWeight && (
+              <Field id="p-weight" label={`Weight (${d.weightUnit})`} error={shown.weight}>
+                <input id="p-weight" inputMode="decimal" autoComplete="off" value={d.weight} aria-invalid={!!shown.weight} onChange={(e) => set('weight', e.target.value)} />
+              </Field>
+            )}
+          </div>
+          <Field id="p-activity" label="How active are you outside training?">
+            <select id="p-activity" value={d.activity} onChange={(e) => set('activity', e.target.value as Activity)}>
+              {ACTIVITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}: {o.hint}</option>)}
+            </select>
+          </Field>
+        </section>
+      )}
+
+      {has('training') && (
+        <section className="panel" aria-labelledby="train-h">
+          <h2 id="train-h">Training</h2>
+          <p className="hint" style={{ marginTop: 2, marginBottom: 12 }}>These build your workout plan: which exercises, how many sets, and how hard to push.</p>
+          <Field label="Experience"><Choice name="Experience" options={EXPERIENCE} value={d.experience} onChange={(v) => set('experience', v)} /></Field>
+          <Field label="Where you train"><Choice name="Where you train" options={EQUIPMENT} value={d.setting} onChange={(v) => set('setting', v)} /></Field>
+          <Field label="Training days" error={shown.trainingDays} why="Today shows a workout on these days and a rest day otherwise. Three days with a rest day between works best.">
+            <div className="chips" role="group" aria-label="Training days">
+              {WEEKDAYS.map((w) => (
+                <button key={w.value} type="button" className="chip" aria-pressed={d.trainingDays.includes(w.value)} onClick={() => set('trainingDays', toggle(d.trainingDays, w.value))}>{w.label}</button>
+              ))}
+            </div>
+          </Field>
+          <Field label="How long can you train?" why="Shorter sessions drop the small extra exercises first, then a set from the main ones.">
+            <Chips label="Session length" value={d.sessionMinutes} onChange={(v) => set('sessionMinutes', v)} options={[30, 45, 60, 75].map((m) => ({ value: m, label: `${m} min` }))} />
+          </Field>
+          <Field label="Anything that hurts or limits you?" why="Exercises that often aggravate these are swapped, and the workout says why. Not medical advice: see a physiotherapist for pain that persists.">
+            <div className="chips" role="group" aria-label="Limitations">
+              {(Object.keys(LIMITATION_LABELS) as Limitation[]).map((l) => (
+                <button key={l} type="button" className="chip" aria-pressed={d.limitations.includes(l)} onClick={() => set('limitations', toggle(d.limitations, l))}>{LIMITATION_LABELS[l]}</button>
+              ))}
+            </div>
+          </Field>
+        </section>
+      )}
+
+      {has('food') && (
+        <section className="panel" aria-labelledby="food-h">
+          <h2 id="food-h">Food</h2>
+          <Field label="Foods you don't eat" why="Hidden from food search and meal ideas. Leave all unselected if you eat everything.">
+            <div className="chips" role="group" aria-label="Foods you don't eat">
+              {(Object.keys(AVOID_LABELS) as AvoidCategory[]).map((c) => (
+                <button key={c} type="button" className="chip" aria-pressed={d.avoidFoods.includes(c)} onClick={() => set('avoidFoods', toggle(d.avoidFoods, c))}>{AVOID_LABELS[c]}</button>
+              ))}
+            </div>
+          </Field>
+        </section>
+      )}
+    </>
+  );
+}
+
+/** All profile questions on one page (Settings). */
+export default function ProfileForm({ initial, askWeight, submitLabel, onSubmit }: {
   initial: ProfileDraft;
   askWeight: boolean;
   submitLabel: string;
   onSubmit: (d: ProfileDraft) => Promise<void>;
-  /** Live preview rendered above the submit button (e.g. starting targets). */
-  aside?: (d: ProfileDraft, valid: boolean) => ReactNode;
 }) {
-  const [d, setD] = useState(initial);
+  const draft = useProfileDraft(initial);
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const errors = validate(d, askWeight);
+  const errors = validate(draft.d, askWeight);
   const valid = Object.keys(errors).length === 0;
-  const shown = tried ? errors : {};
-  const set = <K extends keyof ProfileDraft>(k: K, v: ProfileDraft[K]) => setD((cur) => ({ ...cur, [k]: v }));
-
-  // Switching units converts what's already typed.
-  function setWeightUnit(u: WeightUnit) {
-    if (u === d.weightUnit) return;
-    const v = n(d.weight);
-    setD((cur) => ({ ...cur, weightUnit: u, weight: d.weight && v > 0 ? String(tidy(toWeight(fromWeight(v, cur.weightUnit), u), 1)) : cur.weight }));
-  }
-  function setLengthUnit(u: LengthUnit) {
-    if (u === d.lengthUnit) return;
-    const v = n(d.height);
-    setD((cur) => ({ ...cur, lengthUnit: u, height: d.height && v > 0 ? String(tidy(toLength(fromLength(v, cur.lengthUnit), u), 1)) : cur.height }));
-  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -168,7 +282,7 @@ export default function ProfileForm({ initial, askWeight, submitLabel, onSubmit,
     setBusy(true);
     setError('');
     try {
-      await onSubmit(d);
+      await onSubmit(draft.d);
     } catch (err) {
       setError(`Couldn't save: ${(err as Error).message || 'unknown error'}. Your answers are still here; try again.`);
     } finally {
@@ -178,86 +292,11 @@ export default function ProfileForm({ initial, askWeight, submitLabel, onSubmit,
 
   return (
     <form onSubmit={submit} noValidate>
-      <section className="panel" aria-labelledby="goal-h">
-        <h2 id="goal-h">Goal</h2>
-        <p className="hint" style={{ marginTop: 2, marginBottom: 12 }}>Sets your calorie surplus and the weight trend the weekly review aims for.</p>
-        <Choice name="Goal" options={GOALS} value={d.gainRatePctPerWeek} onChange={(v) => set('gainRatePctPerWeek', v)} />
-      </section>
-
-      <section className="panel" aria-labelledby="units-h">
-        <h2 id="units-h">Units</h2>
-        <div className="form-row" style={{ marginTop: 12 }}>
-          <Field label="Weight"><Chips label="Weight unit" value={d.weightUnit} onChange={setWeightUnit} options={[{ value: 'kg', label: 'kg' }, { value: 'lb', label: 'lb' }]} /></Field>
-          <Field label="Height and measurements"><Chips label="Length unit" value={d.lengthUnit} onChange={setLengthUnit} options={[{ value: 'cm', label: 'cm' }, { value: 'in', label: 'in' }]} /></Field>
-        </div>
-      </section>
-
-      <section className="panel" aria-labelledby="body-h">
-        <h2 id="body-h">About you</h2>
-        <p className="hint" style={{ marginTop: 2, marginBottom: 12 }}>Used only to estimate your starting calories (Mifflin-St Jeor) and protein.</p>
-        <Field label="Sex" error={shown.sex}>
-          <Chips label="Sex" value={d.sex} onChange={(v) => set('sex', v)} options={[{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }]} />
-        </Field>
-        <div className="form-row">
-          <Field id="p-age" label="Age" error={shown.age}>
-            <input id="p-age" inputMode="numeric" autoComplete="off" value={d.age} aria-invalid={!!shown.age} onChange={(e) => set('age', e.target.value.replace(/\D/g, ''))} />
-          </Field>
-          <Field id="p-height" label={`Height (${d.lengthUnit})`} error={shown.height}>
-            <input id="p-height" inputMode="decimal" autoComplete="off" value={d.height} aria-invalid={!!shown.height} onChange={(e) => set('height', e.target.value)} />
-          </Field>
-          {askWeight && (
-            <Field id="p-weight" label={`Weight (${d.weightUnit})`} error={shown.weight}>
-              <input id="p-weight" inputMode="decimal" autoComplete="off" value={d.weight} aria-invalid={!!shown.weight} onChange={(e) => set('weight', e.target.value)} />
-            </Field>
-          )}
-        </div>
-        <Field id="p-activity" label="Daily activity outside training">
-          <select id="p-activity" value={d.activity} onChange={(e) => set('activity', e.target.value as Activity)}>
-            {ACTIVITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}: {o.hint}</option>)}
-          </select>
-        </Field>
-      </section>
-
-      <section className="panel" aria-labelledby="train-h">
-        <h2 id="train-h">Training</h2>
-        <p className="hint" style={{ marginTop: 2, marginBottom: 12 }}>These build your program: exercises, sets and how hard to push.</p>
-        <Field label="Experience"><Choice name="Experience" options={EXPERIENCE} value={d.experience} onChange={(v) => set('experience', v)} /></Field>
-        <Field label="Where you train"><Choice name="Where you train" options={EQUIPMENT} value={d.setting} onChange={(v) => set('setting', v)} /></Field>
-        <Field label="Training days" error={shown.trainingDays} why="Today shows a session on these days and a rest day otherwise.">
-          <div className="chips" role="group" aria-label="Training days">
-            {WEEKDAYS.map((w) => (
-              <button key={w.value} type="button" className="chip" aria-pressed={d.trainingDays.includes(w.value)} onClick={() => set('trainingDays', toggle(d.trainingDays, w.value))}>{w.label}</button>
-            ))}
-          </div>
-        </Field>
-        <Field label="Session length" why="Shorter sessions drop accessory exercises first, then a set from the main lifts.">
-          <Chips label="Session length" value={d.sessionMinutes} onChange={(v) => set('sessionMinutes', v)} options={[30, 45, 60, 75].map((m) => ({ value: m, label: `${m} min` }))} />
-        </Field>
-        <Field label="Anything that hurts or limits you?" why="Exercises that commonly aggravate these are swapped, and the workout says why. This isn't medical advice; see a physiotherapist for pain that persists.">
-          <div className="chips" role="group" aria-label="Limitations">
-            {(Object.keys(LIMITATION_LABELS) as Limitation[]).map((l) => (
-              <button key={l} type="button" className="chip" aria-pressed={d.limitations.includes(l)} onClick={() => set('limitations', toggle(d.limitations, l))}>{LIMITATION_LABELS[l]}</button>
-            ))}
-          </div>
-        </Field>
-      </section>
-
-      <section className="panel" aria-labelledby="food-h">
-        <h2 id="food-h">Food</h2>
-        <Field label="Foods you don't eat" why="Hidden from food search and meal ideas. You can still show everything when searching.">
-          <div className="chips" role="group" aria-label="Foods you don't eat">
-            {(Object.keys(AVOID_LABELS) as AvoidCategory[]).map((c) => (
-              <button key={c} type="button" className="chip" aria-pressed={d.avoidFoods.includes(c)} onClick={() => set('avoidFoods', toggle(d.avoidFoods, c))}>{AVOID_LABELS[c]}</button>
-            ))}
-          </div>
-        </Field>
-      </section>
-
-      {aside?.(d, valid)}
-
+      <ProfileSections draft={draft} shown={tried ? errors : {}} askWeight={askWeight} />
       {error && <p className="hint error-text" role="alert" style={{ marginBottom: 12 }}>{error}</p>}
       {tried && !valid && <p className="hint error-text" role="alert" style={{ marginBottom: 12 }}>Some answers need fixing; they're marked above.</p>}
       <button type="submit" className="primary lg block" disabled={busy}>{busy ? 'Saving…' : submitLabel}</button>
     </form>
   );
 }
+

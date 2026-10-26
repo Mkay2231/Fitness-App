@@ -6,6 +6,7 @@ All data stays in the browser on your device (IndexedDB). There is no server and
 
 ## What works
 
+- **Onboarding and help:** three skippable welcome screens, then setup in five short steps with Back and Continue. Each tab shows a short "how this screen works" guide the first time it opens. A Help page explains every term in plain language, and "What's this?" links next to terms open it.
 - **Setup and profile:** goal, units, body details, experience, equipment, days, session length, limitations and foods you avoid. Each answer changes something specific, and edits that would change your programme or targets are shown for review first.
 - **Today:** the session for today with targets beside last time, a body-weight entry, an optional check-in, food status, and the week so far.
 - **Workouts:**

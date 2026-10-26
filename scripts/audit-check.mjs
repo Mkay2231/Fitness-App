@@ -40,12 +40,29 @@ async function inspect(label) {
 
 try {
   await page.goto(URL);
-  await page.getByRole('heading', { name: 'Set up' }).waitFor();
-  await inspect('Setup');
+  const press = async (name, key = 'Enter') => { await page.getByRole('button', { name, exact: true }).focus(); await page.keyboard.press(key); };
+  const heading = (name) => page.getByRole('heading', { name, exact: true }).waitFor();
 
-  // Keyboard-only setup: answers via Tab/Space/typing, submit with Enter on a field.
-  await page.getByRole('button', { name: 'Male', exact: true }).focus();
-  await page.keyboard.press('Space');
+  // Welcome screens, keyboard only.
+  for (const [title, next] of [['Your training journal', 'Next'], ['How it works', 'Next'], ['You stay in control', 'Set up my plan']]) {
+    await heading(title);
+    const focused = await page.evaluate(() => document.activeElement?.tagName);
+    if (focused !== 'H1') problems.push(`Welcome "${title}": focus not moved to the heading (on ${focused})`);
+    await inspect(`Welcome: ${title}`);
+    await press(next);
+  }
+
+  // Setup, keyboard only: arrow keys in option lists, Space on chips, typing, Enter to continue.
+  await heading('What do you want?');
+  await inspect('Setup 1: goal');
+  await page.getByRole('radio', { name: /Steady gain/ }).focus();
+  await page.keyboard.press('ArrowDown');
+  if (await page.getByRole('radio', { name: /Faster gain/ }).getAttribute('aria-checked') !== 'true') problems.push('Goal: ArrowDown did not select the next option');
+  await page.keyboard.press('ArrowUp');
+  await press('Continue');
+  await heading('A little about you');
+  await inspect('Setup 2: about you');
+  await press('Male', 'Space');
   await page.getByLabel('Age').focus();
   await page.keyboard.type('25');
   await page.keyboard.press('Tab');
@@ -53,9 +70,21 @@ try {
   await page.keyboard.press('Tab');
   await page.keyboard.type('62');
   await page.keyboard.press('Enter');
+  await heading('How you train');
+  await inspect('Setup 3: training');
+  await press('Continue');
+  await heading('What you eat');
+  await inspect('Setup 4: food');
+  await press('Continue');
+  await heading('Your starting plan');
+  await inspect('Setup 5: plan');
+  await press('Start using Rep Ledger');
   await page.getByRole('heading', { name: 'Today' }).waitFor();
-  console.log('✓ keyboard-only setup (Space on choices, Tab between fields, Enter submits)');
-  await inspect('Today');
+  console.log('✓ keyboard-only welcome and setup (arrows in option lists, Space on choices, Enter to continue)');
+  await inspect('Today (with guide)');
+  await page.goto(`${URL}#/help`);
+  await heading('Help');
+  await inspect('Help');
 
   for (const [route, heading] of [['train', 'Train'], ['food', 'Food'], ['progress', 'Progress'], ['review', 'Review'], ['settings', 'Settings'], ['train/edit', 'Edit programme']]) {
     await page.goto(`${URL}#/${route}`);
@@ -112,10 +141,10 @@ try {
   await page.goto(`${URL}#/settings`);
   await page.getByText('Delete all data', { exact: true }).click();
   await page.getByRole('button', { name: 'Delete everything on this device' }).click();
-  await page.getByRole('heading', { name: 'Set up' }).waitFor();
+  await page.getByRole('heading', { name: 'Your training journal' }).waitFor();
   const leftovers = await page.evaluate(() => Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i)).filter((k) => k?.startsWith('rl-')));
   if (leftovers.length) problems.push(`delete left drafts behind: ${leftovers.join(', ')}`);
-  console.log(`${leftovers.length ? '✗' : '✓'} delete-all returns to setup and leaves no workout drafts`);
+  console.log(`${leftovers.length ? '✗' : '✓'} delete-all returns to the welcome screens and leaves no drafts or dismissed guides`);
 
   if (errors.length) problems.push(`page errors: ${errors.join('; ')}`);
   if (problems.length) {

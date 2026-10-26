@@ -42,6 +42,10 @@ Radii: 8px for controls, 12px for panels, 16px for sheets. 1px warm borders do t
 - **Exercise block:** name and prescription, then a two-cell comparison (today's target on accent-soft beside last time), then "Why this target" and "How to do it" disclosures, then the set table.
 - **Set row:** set number, previous, kg, reps, check (52px). The active row is tinted, has large inputs (decimal and numeric keyboards), and the RIR picker sits below. A logged row shows its values; its check button opens in-place editing with Delete and Cancel.
 - **Save status pill:** Saved / Saving… / Offline · saved on phone / Not saved, each with its own color pair.
+- **Welcome screens:** a white panel with a visual (a labelled example card or icon rows on accent-soft tiles), then a title, a short paragraph, progress dots and one primary button. Skip sits top right.
+- **Setup steps:** "Step N of 5" with a thin progress bar, a question as the heading, then one or two sections from the profile form, with Back and Continue.
+- **Screen guide:** an accent-soft block at the top of a tab, with a heading, 3–4 bullet points, a primary "Got it" button and an "Explain the terms" link. It's dismissed once per device.
+- **Help:** terms grouped by area. The term you linked to is highlighted.
 - **Icons:** the authored set in `src/icons.tsx`, 24px grid, 1.75 stroke, round caps. No emoji or Unicode glyphs as icons.
 
 ## Motion

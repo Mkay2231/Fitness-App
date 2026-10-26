@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { db, type EquipmentKind, type Settings } from '../db';
 import { applyProgram, deleteAllData, exportAll, exportCsv, importAll, nowISO, previewProgramChange, today, type CsvKind } from '../data';
 import { Icon } from '../icons';
@@ -109,7 +110,7 @@ export default function SettingsScreen() {
     <div className="page">
       <header className="page-head">
         <h1>Settings</h1>
-        <p className="meta">Your profile, weight jumps and data.</p>
+        <p className="meta">Your profile, weight jumps and data. Not sure what something means? See <Link to="/help">Help</Link>.</p>
       </header>
 
       {msg && <div className="notice" role="status"><Icon name="check" size="sm" />{msg}</div>}

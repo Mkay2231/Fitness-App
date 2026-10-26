@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { db, type WeightLog } from '../db';
 import { exerciseHistory, today } from '../data';
 import { Icon } from '../icons';
+import { HelpLink, ScreenTip } from '../tips';
 import { wt } from '../plan';
 import { addDays, daysBetween, isoWeekday, weekDates, weekStart } from '../rules/dates';
 import { bestOneRepMax } from '../rules/progression';
@@ -73,6 +74,8 @@ export default function Progress() {
         <p className="meta">Body weight, measurements and lifts. Only what you have recorded.</p>
       </header>
 
+      <ScreenTip id="progress" />
+
       <section className="card" aria-labelledby="bw-h">
         <h2 id="bw-h">Body weight</h2>
         <form className="form-grid" onSubmit={saveWeight} noValidate>
@@ -87,7 +90,7 @@ export default function Progress() {
           <>
             <div className="kpis" style={{ marginTop: 10 }}>
               <div className="kpi"><div className="v">{avg !== null ? u.w(avg) : '–'}</div><div className="l">7-day average{avg === null ? ' (none this week)' : ''}</div></div>
-              <div className="kpi"><div className="v">{rate !== null ? u.rate(rate) : '–'}</div><div className="l">{rate !== null ? '14-day weight trend' : 'Trend needs 8 weigh-ins over 10+ days'}</div></div>
+              <div className="kpi"><div className="v">{rate !== null ? u.rate(rate) : '–'}</div><div className="l">{rate !== null ? '14-day weight trend (per week)' : 'Trend needs 8 weigh-ins over 10+ days'}</div></div>
             </div>
             <p className="hint">This is scale weight: it includes water, food and fat as well as muscle, so it can't show muscle gain on its own. Read it alongside your lifts and measurements.</p>
             <WeightChart weights={weights} u={u} />
@@ -152,7 +155,7 @@ export default function Progress() {
             <details key={l.id} className="card">
               <summary className="row between" style={{ width: '100%' }}>
                 <span>{l.name}</span>
-                <span className="muted small num">{latest !== null ? `e1RM ${u.w(latest)}` : `${l.history.length} sessions`}{change !== null ? ` (${change >= 0 ? '+' : '−'}${fmt(Math.abs(change), 1)})` : ''}</span>
+                <span className="muted small num">{latest !== null ? `Est. max ${u.w(latest)}` : `${l.history.length} sessions`}{change !== null ? ` (${change >= 0 ? '+' : '−'}${fmt(Math.abs(change), 1)})` : ''}</span>
               </summary>
               <ul className="list">
                 {l.history.map((h, i) => (
@@ -162,7 +165,7 @@ export default function Progress() {
                   </li>
                 ))}
               </ul>
-              <p className="hint">e1RM = estimated 1-rep max from your best set (Epley formula, counting reps in reserve). A rough strength trend, not a number to test.</p>
+              <p className="hint">Est. max: a rough guess of the most you could lift once, from your best set. A strength score to track, not a number to test. <HelpLink term="e1rm" /></p>
             </details>
           );
         })}

@@ -8,6 +8,7 @@
 // still opens, that setup and a logged set save, and that they survive a reload.
 
 import { chromium } from 'playwright-core';
+import { completeSetup } from './lib/setup.mjs';
 
 const URL = process.env.APP_URL || 'http://localhost:4173/';
 const channel = process.env.BROWSER || 'msedge';
@@ -25,14 +26,10 @@ try {
 
   await context.setOffline(true);
   await page.reload();
-  await page.getByRole('heading', { name: 'Set up' }).waitFor({ timeout: 10_000 });
+  await page.getByRole('heading', { name: 'Your training journal' }).waitFor({ timeout: 10_000 });
   step('app opens with no network');
 
-  await page.getByRole('button', { name: 'Male', exact: true }).click();
-  await page.getByLabel('Age').fill('25');
-  await page.getByLabel('Height (cm)').fill('175');
-  await page.getByLabel('Weight (kg)').fill('62');
-  await page.getByRole('button', { name: 'Save and start' }).click();
+  await completeSetup(page);
   await page.getByRole('button', { name: /Start workout|Train today instead/ }).click();
   step('setup saved offline and workout started');
 

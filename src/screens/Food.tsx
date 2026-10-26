@@ -5,6 +5,7 @@ import { db, type Food as FoodItem, type FoodSource, type MealSlot } from '../db
 import { nowISO, targetsOn, today, totalsFor } from '../data';
 import { addDays } from '../rules/dates';
 import { Icon } from '../icons';
+import { HelpLink, ScreenTip } from '../tips';
 import { useToday } from '../useToday';
 import { fitsPreferences, type AvoidCategory } from '../rules/foodPrefs';
 import { Chips, Loading, Sheet, fmt, fmtDate } from '../ui';
@@ -80,6 +81,8 @@ export default function Food() {
         </div>
       </header>
 
+      <ScreenTip id="food" />
+
       <div className="card">
         <div className="row between">
           <span className={`badge ${status === 'complete' ? 'ok' : status === 'partial' ? 'warn' : ''}`}>
@@ -107,7 +110,7 @@ export default function Food() {
               I ate nothing this day
             </button>
           )}
-          <p className="hint">Only complete days are used for averages and calorie adjustments.</p>
+          <p className="hint">Only complete days are used for averages and calorie advice. <HelpLink term="complete-day">Why?</HelpLink></p>
         </div>
       </div>
 
