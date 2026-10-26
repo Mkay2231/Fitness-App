@@ -18,11 +18,13 @@
     "check:review": "node scripts/review-check.mjs",
     "check:audit": "node scripts/audit-check.mjs",
     "check:meals": "node scripts/meals-check.mjs",
-    "check:all": "npm run check:audit && npm run check:profile && npm run check:workout && npm run check:review && npm run check:meals",
+    "check:account": "node scripts/account-check.mjs",
+    "check:all": "npm run check:audit && npm run check:profile && npm run check:workout && npm run check:review && npm run check:meals && npm run check:account",
     "foods:import": "node --env-file-if-exists=.env.local scripts/import-usda.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",
+    "@supabase/supabase-js": "2.117.3",
     "dexie": "^4.4.7",
     "dexie-react-hooks": "^4.4.0",
     "react": "^19.3.1",

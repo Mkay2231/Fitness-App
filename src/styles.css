@@ -155,6 +155,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
 label { display: block; font-weight: 600; font-size: 0.9375rem; margin-bottom: 6px; }
 .field { margin-bottom: 16px; }
 .hint { font-size: 0.875rem; color: var(--muted); font-weight: 400; margin-top: 6px; line-height: 1.45; }
+.hint.error-text { color: var(--danger); }
 input, select, textarea {
   width: 100%; min-height: var(--tap); padding: 0 12px; border-radius: var(--r-sm);
   border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); font: inherit;
@@ -408,3 +409,18 @@ h1[tabindex='-1']:focus { outline: none; }
 .shop-list input { width: 22px; height: 22px; min-height: 0; accent-color: var(--accent); flex: none; }
 .shop-list label.done span { color: var(--muted); text-decoration: line-through; }
 .ingredients .num, .shop-list .num { white-space: nowrap; }
+
+/* Account and sync */
+.divider-text { display: flex; align-items: center; gap: 12px; margin: 16px 0; color: var(--muted); font-size: 0.875rem; }
+.divider-text::before, .divider-text::after { content: ''; flex: 1; border-top: 1px solid var(--border); }
+.check-row { display: flex; align-items: center; gap: 10px; min-height: 44px; margin: 4px 0 0; font-weight: 500; cursor: pointer; }
+.check-row input { width: 22px; height: 22px; min-height: 0; accent-color: var(--accent); flex: none; }
+.sync-line { display: flex; align-items: flex-start; gap: 8px; margin: 12px 0 0; font-size: 0.9375rem; color: var(--muted); }
+.sync-line .icon { flex: none; margin-top: 2px; }
+.sync-line.synced { color: var(--accent); }
+.sync-line.error, .sync-line.conflict { color: var(--danger); }
+.sync-line.offline { color: var(--warn); }
+.copy-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 12px 0; }
+.copy-card { background: var(--surface-sunk); border-radius: var(--r-sm); padding: 12px 14px; }
+.copy-card ul { margin: 6px 0 0; padding-left: 18px; }
+.copy-card li + li { margin-top: 2px; }

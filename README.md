@@ -2,7 +2,7 @@
 
 A personal, mobile-first training and nutrition log for building muscle. It tells you what to train today, records your sets, logs your food (with sourced nutrition values), tracks body weight and measurements, and builds a weekly review with rule-based suggestions that you accept or reject.
 
-All data stays in the browser on your device (IndexedDB). There is no server and no account.
+All data lives in the browser on your device (IndexedDB), so the app works offline. An account is optional: sign in and the app keeps a copy of your data in it (Supabase), for backup and for using a second device.
 
 ## What works
 
@@ -129,9 +129,59 @@ npm run check:profile   # second terminal: setup → reload → edit → reload,
 ## Storage, accounts and privacy
 
 - **Where data lives:** everything is in this browser's IndexedDB on your device. It survives reloads, restarts and going offline, and `check:profile` and `check:offline` verify that.
-- **No accounts or server:** for one person on one phone an account adds nothing. The app has no server, no account and no secrets. The USDA key is used only by a script on your computer.
-- **Limits of local storage:** data does not sync between devices. Clearing the browser's site data, or uninstalling the installed app, deletes it. The app asks the browser to keep its storage and offers JSON export and restore.
-- **When accounts become worth it:** multiple devices, automatic backup, or paying users. The plan then is Supabase: Postgres with row-level security so each user can read only their own rows, plus a server function holding any API keys. The free tier covers one person; Pro is about $25/month. Costs get confirmed before it's set up.
+- **Accounts are optional:** without one, nothing leaves the phone. Signed in, the app keeps one copy of your data in your account (see *Accounts and sync* below). The app holds no secrets: the Supabase URL and publishable key are public by design, and row-level security decides who can read what. The USDA key is used only by a script on your computer.
+- **Limits of local storage:** without an account, data does not sync between devices. Clearing the browser's site data, or uninstalling the installed app, deletes it. The app asks the browser to keep its storage and offers JSON export and restore.
+
+## Accounts and sync
+
+Sign in with email and password or with Google, from *Settings → Account and sync*, or from the first welcome screen on a new phone (*Sign in to restore your data*).
+
+**How sync works.** The phone is always the working copy, so logging never waits for the internet. Your account holds one copy: the same contents as *Export full backup*, minus the built-in foods every phone already has. The app compares the two after sign-in, a few seconds after you log something, when the app comes back to the front, when the internet returns, and every 5 minutes while open. The rules are in `src/rules/sync.ts` and are tested:
+
+| This phone | Your account | What happens |
+|---|---|---|
+| Has data | Empty | This phone's data is copied to the account |
+| Empty (new phone) | Has data | The account copy is restored to this phone |
+| Changed since last sync | Unchanged | Uploaded |
+| Unchanged | Changed by another device | Downloaded |
+| Changed | Also changed | Sync pauses and asks you which copy to keep, showing what each holds. Nothing is merged or guessed |
+
+Every upload says which version it replaces, and the database only accepts it if that's still the latest (`version` column), so two phones syncing at the same moment can't silently undo each other. Not synced: a set typed but not saved, dismissed guides and shopping-list ticks.
+
+**Signing out** keeps the data on the phone. *Sign out and remove data from this phone* syncs first and refuses if anything isn't safely in the account. **Delete account** deletes the sign-in and the account copy (through the `delete_my_account` database function, which can only delete the caller's own account); the phone keeps its data. **Delete all data** in Settings signs out on that phone first, so the account doesn't immediately restore it.
+
+**Privacy.** The copy is stored by Supabase. Row-level security means only your signed-in account can read or write it, and signed-out requests get nothing. Supabase encrypts it on disk, but it isn't end-to-end encrypted, so Supabase could technically access it. Google sign-in shares your name, email and picture with the app; only the email is used.
+
+### Setting up Supabase (once)
+
+You do these steps yourself, because they involve creating accounts and keys.
+
+1. **Create the project.** Sign up at <https://supabase.com> on the **Free** plan (no card needed) and create a project. Pick a region near you (West EU, London, is close to Nigeria), and keep the database password somewhere safe. The app never needs that password.
+2. **Create the table.** In *SQL Editor → New query*, paste all of `supabase/schema.sql` and click **Run**. Then check *Advisors → Security Advisor*: it should report no errors for `backups`.
+3. **Tell Supabase where the app lives.** In *Authentication → URL Configuration*, set **Site URL** to `https://rep-ledger-ten.vercel.app/` and add these **Redirect URLs**: `https://rep-ledger-ten.vercel.app/` and `http://localhost:5173/`.
+4. **Email sign-in.** It is on by default, with email confirmation. Supabase's built-in email sender only sends a few emails an hour, which is fine for one person. Set up your own SMTP sender later if you add users.
+5. **Google sign-in** (optional; the app shows a clear message until it's on):
+   1. In [Google Cloud Console](https://console.cloud.google.com/), create a project.
+   2. Set up the *OAuth consent screen*: choose *External*, add your email as a test user, and keep it in *Testing*.
+   3. Create *Credentials → OAuth client ID → Web application*. Under **Authorized redirect URI**, paste the *Callback URL* shown in Supabase under *Authentication → Sign In / Providers → Google*.
+   4. Paste the client ID and secret into that Supabase page and enable Google. The secret stays in Supabase. It never goes into this project.
+6. **Connect the app.** Under *Project Settings → API Keys*, copy the **Project URL** and the **publishable** key (it starts `sb_publishable_`). **Never use the secret key** in the app.
+   - Put them in `.env.local` as `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` (see `.env.example`).
+   - Add the same two values in Vercel under *Project → Settings → Environment Variables*, for Production and Preview, then redeploy.
+
+Without those two variables the app runs exactly as before, with no account option.
+
+**Free-plan limits** (checked October 2026; confirm on <https://supabase.com/pricing>):
+- 50,000 monthly users, a 500 MB database and 5 GB of downloads a month. One person's data is a few hundred KB to a few MB.
+- **A free project pauses after a week with no requests.** While it's paused, sync shows an error but the app keeps working on the phone. Restore the project from the Supabase dashboard.
+- Pro is from $25 a month. It isn't needed for one person, and it would only be turned on with your say-so.
+
+`npm run check:account` tests all of this end to end against a fake Supabase inside the test, so no real account is used:
+- sign-up and sign-in, including errors
+- restoring on a second phone
+- automatic upload
+- the conflict choice
+- sign-out and account deletion
 
 ## Workouts and the programme
 
@@ -229,17 +279,17 @@ Without a key it uses USDA's shared demo key, which is often rate-limited. To us
 Every household measure records how its grams are known: a USDA portion weight, *weighed by me*, or *my estimate, not weighed*. Add your own (serving spoon, cooking spoon, wrap, cup) from any food's portion screen.
 ## Your data: export and deletion
 
-Data lives only in the browser where you use the app. *Settings → Your data* offers:
+Data lives in the browser where you use the app, plus your account copy if you sign in. *Settings → Your data* offers:
 
 - **Export full backup (JSON):** everything, restorable with *Restore from a backup*. A restore replaces all data in one step: if the file is broken, from another app, from a newer version or missing a profile, it's refused and nothing changes. Backups from before the profile update are upgraded on restore.
 - **Export for a spreadsheet (CSV):** workout sets, weigh-ins, measurements, food log (with sources) and check-ins, in kg and cm. These can't be restored.
-- **Delete all data:** removes every record on this device, including unfinished-workout drafts, and returns to setup.
+- **Delete all data:** removes every record on this device, including unfinished-workout drafts, and returns to setup. If you're signed in, it signs that phone out too; the account copy stays until you use *Delete account*.
 
-There are no accounts, so there are no other users' records to protect against. Anyone who can unlock your phone can open the app, just as with your other apps.
+Anyone who can unlock your phone can open the app, just as with your other apps. The account copy is protected by your sign-in and row-level security.
 
 ## Deploy
 
-The app is a static site: `npm run build` produces `dist/` (about 0.8 MB). It needs no server, database or secrets.
+The app is a static site: `npm run build` produces `dist/`. It needs no server of its own and no secrets. Accounts use Supabase directly from the browser.
 
 **Live now on Vercel:** <https://rep-ledger-ten.vercel.app> (project `rep-ledger`, Hobby plan). Settings and headers are in `vercel.json`.
 
@@ -251,13 +301,13 @@ The app is a static site: `npm run build` produces `dist/` (about 0.8 MB). It ne
 
 **After deploying**, open the site on your phone. On Android Chrome, use **Install app** (also in Settings). On iPhone, use Safari → Share → **Add to Home Screen**. Installing matters on iPhone: Safari can clear the storage of sites that aren't on the Home Screen after weeks without use.
 
-What becomes public: the app's code and the built-in food and exercise data. Your records never leave your phone. The GitHub repository is public, so its code and commit history (including the commit email) are already visible.
+What becomes public: the app's code, the built-in food and exercise data, and the Supabase URL and publishable key, which are meant to be public. Your records leave your phone only into your own account, and only when you sign in. The GitHub repository is public, so its code and commit history (including the commit email) are already visible.
 
 ## Environment variables
 
 | Variable | Where | Required | Purpose |
 |---|---|---|---|
-| none | Deployed app | – | The app runs entirely in the browser and holds no secrets |
+| `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` | `.env.local` and Vercel environment variables | Optional | Switch on accounts and sync. Public by design and built into the app; leave empty to run without accounts. Never use Supabase's secret key here |
 | `NODE_VERSION` | Host build settings | Set in `netlify.toml`; add manually on Cloudflare; Vercel uses its default | Node version for the build |
 | `VERCEL_OIDC_TOKEN` | `.env.local` (written by `vercel link`; git-ignored, never uploaded) | No | Vercel CLI's short-lived token. Not used by the app; never commit it |
 | `FDC_API_KEY` | `.env.local` on your computer (git-ignored; template in `.env.example`) | Optional | Your free USDA key for `npm run foods:import`. Never set it on the host |
@@ -269,14 +319,17 @@ What becomes public: the app's code and the built-in food and exercise data. You
 |---|---|---|
 | Hosting (Vercel Hobby) | ₦0 | One user, a 0.8 MB static app, no server functions. Hobby is free but for **personal, non-commercial** use only, so charging users would mean a paid plan (Pro has been about $20 per member a month; check Vercel's pricing page). The Netlify free credits on this account were used up, and the deploy there was skipped without a charge |
 | Web address | ₦0 | The free `rep-ledger-ten.vercel.app` address. A custom domain is optional, with yearly registrar pricing |
-| Database, accounts, sync | ₦0 | None used |
+| Accounts and sync (Supabase Free) | ₦0 | One person, well inside 50,000 monthly users, 500 MB and 5 GB a month. No card on file. The project pauses after a week without use |
 | AI summaries | ₦0 | Off. Costs will be quoted before enabling |
 | Food data | ₦0 | USDA is public domain. FAO data is free for non-commercial use; a paid version needs FAO permission or another source |
-| If you later add accounts and sync | about $25/month | Estimate for a managed Postgres plan (e.g. Supabase Pro) once past a free tier. To be confirmed when needed |
+| If you outgrow the free plan | from $25/month | Supabase Pro, only if there are many users or a week-long pause matters. Not turned on without your OK |
 
 ## Known limitations
 
-- **One device:** no sync and no automatic backup. Clearing site data deletes everything, so export a backup regularly.
+- **Sync limits:**
+  - Sync needs the Supabase setup above. Without an account, clearing site data deletes everything, so export a backup regularly.
+  - Sync keeps one copy, not a history. When both phones changed, you choose a whole copy: the two aren't merged.
+  - Real sign-in (email confirmation, Google, password reset) needs your Supabase project; the automated check uses a fake one.
 - **Not yet on a real phone:** checks ran in headless Edge at 360–390 px against both the local build and the live site. iPhone Safari behaviour, including install and storage, is untested.
 - **Timer limits:** the rest timer only counts while the app is open. Vibration works on Android, not on iPhone.
 - **No instructions or demonstrations:** no cited source has been chosen yet, so exercises show "unavailable" rather than unsourced tips.
@@ -297,4 +350,4 @@ What becomes public: the app's code and the built-in food and exercise data. You
 2. Add your usual meals, and a recipe builder for home-cooked dishes (jollof, egusi soup, moi moi) from cited ingredients.
 3. Cited exercise instructions from a source you approve.
 4. Claude explanations for the weekly review, via a small server function. The API key stays on the server, and costs are confirmed before enabling.
-5. Optional cloud sync and login (Supabase) for backup and multiple devices, and later for paying users.
+5. Accounts for other people: a privacy notice, your own email sender, and a paid hosting plan if it becomes commercial.

@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { NavLink, Route, Routes, useLocation } from 'react-router-dom';
+import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom';
+import { useAccount } from './account';
 import { db } from './db';
 import { Icon, type IconName } from './icons';
 import { useOnline } from './install';
@@ -15,6 +16,7 @@ import Progress from './screens/Progress';
 import Review from './screens/Review';
 import SettingsScreen from './screens/Settings';
 import Help from './screens/Help';
+import Account from './screens/Account';
 
 const NAV: { to: string; label: string; icon: IconName }[] = [
   { to: '/', label: 'Today', icon: 'today' },
@@ -54,8 +56,10 @@ export default function App() {
   const online = useOnline();
   const { pathname } = useLocation();
   const inWorkout = pathname.startsWith('/workout/');
+  const { status } = useAccount();
   if (settings === undefined) return <main className="main"><Loading label="Opening your data" /></main>;
-  if (settings === null) return <main className="main"><div className="page"><Onboarding /></div></main>;
+  // Before setup, the account screen lets a new phone restore your data instead.
+  if (settings === null) return <main className="main">{pathname === '/account' ? <Account /> : <div className="page"><Onboarding /></div>}</main>;
   return (
     <UnitsProvider wu={settings.weightUnit ?? 'kg'} lu={settings.lengthUnit ?? 'cm'}>
     <div className="shell">
@@ -63,6 +67,9 @@ export default function App() {
       <main className={`main${inWorkout ? ' has-dock' : ''}`}>
         {!online && !inWorkout && (
           <div className="page"><div className="offline" role="status"><Icon name="cloudOff" size="sm" />Offline. Everything you log is saved on this phone.</div></div>
+        )}
+        {status.kind === 'conflict' && pathname !== '/account' && !inWorkout && (
+          <div className="page"><div className="offline" role="status"><Icon name="alert" size="sm" /><span>Sync is paused: this phone and your account both changed. <Link to="/account">Choose which to keep</Link>.</span></div></div>
         )}
         <Routes>
           <Route path="/" element={<Today />} />
@@ -74,6 +81,7 @@ export default function App() {
           <Route path="/review" element={<Review />} />
           <Route path="/settings" element={<SettingsScreen />} />
           <Route path="/help" element={<Help />} />
+          <Route path="/account" element={<Account />} />
         </Routes>
       </main>
       {/* The active workout is a focused screen: its dock replaces the tab bar on phones. */}

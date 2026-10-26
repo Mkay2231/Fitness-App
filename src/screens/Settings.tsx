@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { signOutBeforeWipe, useAccount } from '../account';
 import { db, type EquipmentKind, type Settings } from '../db';
 import { applyProgram, deleteAllData, exportAll, exportCsv, importAll, nowISO, previewProgramChange, today, type CsvKind } from '../data';
 import { Icon } from '../icons';
@@ -9,6 +10,7 @@ import { initialTargets, type MacroTargets } from '../rules/nutrition';
 import { defaultIncrements, fromWeight, tidy, toWeight } from '../rules/units';
 import { Loading, Reasons } from '../ui';
 import { useUnits } from '../units';
+import { SyncLine } from './Account';
 import ProfileForm, { draftFromSettings, profileValues, type ProfileDraft } from './ProfileForm';
 
 const EQUIP: { id: EquipmentKind; label: string; hint: string }[] = [
@@ -35,6 +37,8 @@ export default function SettingsScreen() {
   const [pending, setPending] = useState<Pending | null>(null);
   const [formKey, setFormKey] = useState(0);
   const fileInput = useRef<HTMLInputElement>(null);
+  const account = useAccount();
+  const email = account.session?.user.email;
   if (!settings) return <Loading label="Loading settings" />;
 
   async function saveProfile(d: ProfileDraft) {
@@ -144,6 +148,8 @@ export default function SettingsScreen() {
         </section>
       )}
 
+      <AccountCard />
+
       <InstallCard />
 
       <section className="section" aria-labelledby="profile-h">
@@ -155,7 +161,7 @@ export default function SettingsScreen() {
 
       <section className="panel" aria-labelledby="data-h">
         <h2 id="data-h">Your data</h2>
-        <p className="small" style={{ marginTop: 6 }}>Everything is stored only in this browser on this device. Nothing is sent to a server. {persisted ? 'The browser has agreed to keep it.' : 'The browser may clear it if storage runs low, so export a backup regularly.'}</p>
+        <p className="small" style={{ marginTop: 6 }}>{email ? <>Stored in this browser on this device, and copied to your account ({email}). </> : 'Stored only in this browser on this device. Nothing is sent to a server unless you sign in. '}{persisted ? 'The browser has agreed to keep it.' : 'The browser may clear it if storage runs low, so export a backup regularly.'}</p>
         <div className="stack">
           <button className="block" onClick={download}>Export full backup (JSON)</button>
           <button className="block" onClick={() => fileInput.current?.click()}>Restore from a backup…</button>
@@ -171,9 +177,11 @@ export default function SettingsScreen() {
         </details>
         <details style={{ marginTop: 4 }}>
           <summary className="danger-summary">Delete all data</summary>
-          <p className="small">Removes your profile, workouts, food log, weights, measurements, check-ins and decisions from this device, including unfinished workouts. It can't be undone, so export a backup first.</p>
+          <p className="small">Removes your profile, workouts, food log, weights, measurements, check-ins and decisions from this device, including unfinished workouts. It can't be undone, so export a backup first.{email ? ' You’ll also be signed out here; your account copy is kept until you delete your account.' : ''}</p>
           <button className="block danger" onClick={async () => {
             if (!confirm('Delete ALL your data on this device? This cannot be undone.')) return;
+            // Sign out first, or sync would restore everything from the account straight away.
+            await signOutBeforeWipe();
             await deleteAllData();
             location.reload();
           }}>Delete everything on this device</button>
@@ -182,6 +190,28 @@ export default function SettingsScreen() {
 
       <TargetHistory />
     </div>
+  );
+}
+
+function AccountCard() {
+  const a = useAccount();
+  if (!a.enabled) return null;
+  return (
+    <section className="panel" aria-labelledby="account-h">
+      <h2 id="account-h">Account and sync</h2>
+      {a.session ? (
+        <>
+          <p className="small" style={{ marginTop: 6, overflowWrap: 'anywhere' }}>Signed in as <strong>{a.session.user.email}</strong>.</p>
+          <SyncLine />
+          <Link to="/account" className="btn block" style={{ marginTop: 12 }}>Manage account</Link>
+        </>
+      ) : (
+        <>
+          <p className="small" style={{ marginTop: 6 }}>Optional. Sign in to keep a copy of your data in your account, so a lost phone doesn't lose your records and you can use another device.</p>
+          <Link to="/account" className="btn primary block">Sign in or create an account</Link>
+        </>
+      )}
+    </section>
   );
 }
 

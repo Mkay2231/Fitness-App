@@ -1,6 +1,8 @@
 // First run: three short welcome screens (skippable), then setup one step at a time.
 
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { supabase } from '../cloud';
 import { db } from '../db';
 import { applyProgram, estimateMinutes, nowISO, programForProfile, today } from '../data';
 import { Icon, type IconName } from '../icons';
@@ -38,7 +40,7 @@ const LOOP: { icon: IconName; title: string; text: string }[] = [
 ];
 
 const PROMISES: { icon: IconName; text: string }[] = [
-  { icon: 'lock', text: 'Your records stay on this phone. No account, nothing uploaded.' },
+  { icon: 'lock', text: 'Your records stay on this phone. An account is optional, only for backup and other devices.' },
   { icon: 'cloudOff', text: 'Works with no signal at the gym.' },
   { icon: 'check', text: 'Every suggestion shows why. Plan changes need your OK.' },
 ];
@@ -60,7 +62,7 @@ function ExampleToday() {
   );
 }
 
-export function Welcome({ onDone, doneLabel = 'Set up my plan' }: { onDone: () => void; doneLabel?: string }) {
+export function Welcome({ onDone, doneLabel = 'Set up my plan', offerSignIn = false }: { onDone: () => void; doneLabel?: string; offerSignIn?: boolean }) {
   const [i, setI] = useState(0);
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => { heading.current?.focus(); }, [i]);
@@ -109,6 +111,9 @@ export function Welcome({ onDone, doneLabel = 'Set up my plan' }: { onDone: () =
         <button className="primary lg grow" onClick={() => (last ? onDone() : setI(i + 1))}>{last ? doneLabel : 'Next'}</button>
       </div>
       {i === 0 && <p className="hint" style={{ textAlign: 'center' }}>Setup takes about 2 minutes.</p>}
+      {offerSignIn && supabase && (
+        <p className="small" style={{ textAlign: 'center', marginTop: 12 }}>Used Rep Ledger before? <Link to="/account">Sign in to restore your data</Link></p>
+      )}
     </div>
   );
 }
@@ -117,7 +122,7 @@ export function Welcome({ onDone, doneLabel = 'Set up my plan' }: { onDone: () =
 
 const STEPS: { title: string; lead: string; sections: SectionId[] }[] = [
   { title: 'What do you want?', lead: 'Pick one. You can change it any time.', sections: ['goal'] },
-  { title: 'A little about you', lead: 'This sets how much to eat. It never leaves your phone.', sections: ['units', 'body'] },
+  { title: 'A little about you', lead: 'This sets how much to eat. It stays on your phone unless you sign in to back it up.', sections: ['units', 'body'] },
   { title: 'How you train', lead: 'This builds your workout plan.', sections: ['training'] },
   { title: 'What you eat', lead: 'Your meal plan is built from the meals you pick here.', sections: ['food'] },
 ];
@@ -245,6 +250,6 @@ function Setup({ onBackToWelcome }: { onBackToWelcome: () => void }) {
 export default function Onboarding() {
   const [phase, setPhase] = useState<'welcome' | 'setup'>('welcome');
   return phase === 'welcome'
-    ? <Welcome onDone={() => setPhase('setup')} />
+    ? <Welcome onDone={() => setPhase('setup')} offerSignIn />
     : <Setup onBackToWelcome={() => setPhase('welcome')} />;
 }

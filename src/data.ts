@@ -266,6 +266,19 @@ export async function exportAll(): Promise<string> {
   return JSON.stringify({ app: 'rep-ledger', version: 1, exportedAt: nowISO(), data }, null, 2);
 }
 
+export interface Snapshot { app: 'rep-ledger'; version: 1; data: Record<string, unknown[]> }
+
+/**
+ * Everything your account keeps: the backup file's contents without built-in foods,
+ * which every copy of the app already has (and which change between app versions).
+ */
+export async function snapshot(): Promise<Snapshot> {
+  const data: Record<string, unknown[]> = {};
+  for (const t of TABLES) data[t] = await db.table(t).toArray();
+  data.foods = (data.foods as { builtIn?: boolean }[]).filter((f) => !f.builtIn);
+  return { app: 'rep-ledger', version: 1, data };
+}
+
 /** Escapes one CSV cell (RFC 4180): quotes when needed, doubles inner quotes. */
 export function csvCell(v: unknown): string {
   if (v === null || v === undefined) return '';

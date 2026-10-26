@@ -4,6 +4,7 @@ import { HashRouter } from 'react-router-dom';
 import { registerSW } from 'virtual:pwa-register';
 import '@fontsource-variable/inter';
 import App from './App';
+import { AccountProvider } from './account';
 import ErrorBoundary from './ErrorBoundary';
 import { requestPersistentStorage } from './db';
 import { syncBuiltIns } from './data';
@@ -18,7 +19,9 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <HashRouter>
       <ErrorBoundary>
-        <App />
+        <AccountProvider>
+          <App />
+        </AccountProvider>
       </ErrorBoundary>
     </HashRouter>
   </StrictMode>,
