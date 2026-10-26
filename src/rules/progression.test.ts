@@ -56,6 +56,34 @@ describe('double progression', () => {
   });
 });
 
+describe('missed sessions', () => {
+  const at = (date: string, w: number, ...reps: number[]) => ({ ...s(w, ...reps), date });
+
+  it('progresses normally within two weeks', () => {
+    expect(suggestNext(press, [at('2026-10-01', 20, 12, 12, 12)], '2026-10-10').kind).toBe('increase');
+  });
+
+  it('holds instead of increasing after 14+ days off', () => {
+    const r = suggestNext(press, [at('2026-10-01', 20, 12, 12, 12)], '2026-10-16');
+    expect(r).toMatchObject({ kind: 'hold', weightKg: 20, targetReps: 12 });
+    expect(r.reasons[0]).toMatch(/15 days ago/);
+  });
+
+  it('starts ~10% lighter after 28+ days off', () => {
+    expect(suggestNext(press, [at('2026-09-01', 25, 10, 10, 10)], '2026-10-01')).toMatchObject({ kind: 'reduce', weightKg: 22.5, targetReps: 8 });
+  });
+
+  it('eases bodyweight work back in by reps', () => {
+    expect(suggestNext(pushup, [at('2026-09-01', 0, 12, 12, 12)].map((x) => ({ ...x, sets: x.sets.map((y) => ({ ...y, weightKg: null })) })), '2026-10-15'))
+      .toMatchObject({ kind: 'hold', targetReps: 8 });
+  });
+
+  it('works when reps in reserve were not recorded', () => {
+    const noRir = { date: '2026-10-01', sets: [12, 12, 12].map((reps) => ({ weightKg: 20, reps, rir: null })) };
+    expect(suggestNext(press, [noRir], '2026-10-03')).toMatchObject({ kind: 'increase', weightKg: 22.5 });
+  });
+});
+
 describe('helpers', () => {
   it('rounds down to increments without float errors', () => {
     expect(roundDownTo(47.5, 2.5)).toBe(47.5);

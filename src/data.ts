@@ -36,7 +36,9 @@ export function programForProfile(p: ProgramProfile) {
 export async function previewProgramChange(p: ProgramProfile) {
   const next = programForProfile(p);
   const current = await getActiveProgram();
-  return { next, changes: programChanges(current, next, EXERCISE_NAMES) };
+  const changes = programChanges(current, next, EXERCISE_NAMES);
+  if (current?.customised && changes.length) changes.unshift('This replaces the edits you made to your programme.');
+  return { next, changes };
 }
 
 /** Saves the profile's program as the active one. Logged sessions are untouched. */
@@ -100,25 +102,56 @@ export function prescriptionFor(slot: ProgramSlot, exercise: Exercise, settings:
   };
 }
 
-export async function suggestionFor(slot: ProgramSlot, exercise: Exercise, settings: Settings, excludeSessionId?: number) {
+export async function suggestionFor(slot: ProgramSlot, exercise: Exercise, settings: Settings, excludeSessionId?: number, asOf: ISODate = today()) {
   const history = await exerciseHistory(exercise.id, excludeSessionId);
-  return { suggestion: suggestNext(prescriptionFor(slot, exercise, settings), history), last: history[0] };
+  return { suggestion: suggestNext(prescriptionFor(slot, exercise, settings), history, asOf), last: history[0] };
 }
 
 export interface PlanRow {
   slot: ProgramSlot;
   ex: Exercise;
+  /** Set when this session does a different exercise than planned. */
+  swappedFrom?: Exercise;
   suggestion: Suggestion;
   last?: ExerciseSession;
 }
 
 /** Each exercise of a program day with today's target and last performance. */
-export async function planFor(day: ProgramDay, settings: Settings, excludeSessionId?: number): Promise<PlanRow[]> {
+/**
+ * Each exercise of a program day with today's target and last performance.
+ * `swaps` replaces planned exercises for one session; the replacement uses its own history.
+ */
+export async function planFor(day: ProgramDay, settings: Settings, excludeSessionId?: number, swaps: Record<string, string> = {}, asOf: ISODate = today()): Promise<PlanRow[]> {
   const exercises = new Map((await db.exercises.toArray()).map((e) => [e.id, e]));
   return Promise.all(day.slots.map(async (slot) => {
-    const ex = exercises.get(slot.exerciseId)!;
-    return { slot, ex, ...(await suggestionFor(slot, ex, settings, excludeSessionId)) };
+    const swappedTo = swaps[slot.exerciseId];
+    const ex = exercises.get(swappedTo ?? slot.exerciseId) ?? exercises.get(slot.exerciseId)!;
+    return { slot, ex, swappedFrom: swappedTo ? exercises.get(slot.exerciseId) : undefined, ...(await suggestionFor(slot, ex, settings, excludeSessionId, asOf)) };
   }));
+}
+
+/** Do a different exercise for this session only. Passing the planned id undoes the swap. */
+export async function swapForSession(sessionId: number, plannedId: string, newId: string) {
+  const s = await db.sessions.get(sessionId);
+  if (!s) throw new Error('Workout not found.');
+  const swaps = { ...(s.swaps ?? {}) };
+  if (newId === plannedId) delete swaps[plannedId]; else swaps[plannedId] = newId;
+  await db.sessions.update(sessionId, { swaps });
+}
+
+/** Make a swap permanent in the programme. Past history stays under the old exercise. */
+export async function replaceInProgram(programId: string, dayId: string, plannedId: string, newId: string) {
+  await db.transaction('rw', db.programs, async () => {
+    const p = await db.programs.get(programId);
+    if (!p) throw new Error('Programme not found.');
+    const days = p.days.map((d) => (d.id !== dayId ? d : {
+      ...d,
+      slots: d.slots.map((s) => (s.exerciseId !== plannedId ? s : {
+        ...s, exerciseId: newId, note: `Replaced ${EXERCISE_NAMES[plannedId] ?? plannedId} on ${today()}. History for each exercise is kept separately.`,
+      })),
+    }));
+    await db.programs.put({ ...p, days, customised: true });
+  });
 }
 
 export { estimateMinutes } from './rules/program';

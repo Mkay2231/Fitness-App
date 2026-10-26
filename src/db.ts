@@ -40,7 +40,8 @@ export interface Exercise {
   equipment: EquipmentKind;
   primary: string;
   secondary: string[];
-  cues: string[];
+  /** How-to steps, only when taken from a cited source. Absent means "not available". */
+  instructions?: { steps: string[]; source: string; url: string };
   /** Weight logged is per dumbbell (true) or total (false). */
   perHand?: boolean;
 }
@@ -67,6 +68,8 @@ export interface Program {
   name: string;
   setting: 'gym' | 'home';
   active: boolean;
+  /** True once you've edited it; profile changes then warn before replacing your edits. */
+  customised?: boolean;
   days: ProgramDay[];
   createdAt: string;
 }
@@ -79,6 +82,8 @@ export interface Session {
   startedAt: string;
   finishedAt: string | null;
   notes?: string;
+  /** Exercises swapped for this session only: planned exercise id → exercise done instead. */
+  swaps?: Record<string, string>;
 }
 
 export interface SetLog {

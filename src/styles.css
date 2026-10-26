@@ -176,6 +176,20 @@ textarea { padding: 10px 12px; min-height: 88px; }
 .choice[aria-checked='true'] .choice-title { color: var(--accent); }
 @media (min-width: 640px) { .choices { grid-template-columns: repeat(2, 1fr); } }
 
+.slot-list { list-style: none; margin: 8px 0 0; padding: 0; }
+.slot-edit { border-top: 1px solid var(--border); padding: 12px 0; }
+.slot-top { display: flex; align-items: center; gap: 6px; }
+.slot-top .set-no { width: 24px; flex: none; }
+.slot-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) repeat(2, minmax(0, 1.3fr)); gap: 8px; margin-top: 8px; padding-left: 30px; }
+.slot-fields label { font-size: 0.8125rem; color: var(--muted); margin-bottom: 4px; }
+.slot-fields input { text-align: center; font-variant-numeric: tabular-nums; }
+.slot-actions { display: flex; justify-content: flex-end; gap: 4px; margin-top: 4px; }
+@media (max-width: 520px) {
+  .slot-fields { grid-template-columns: repeat(6, minmax(0, 1fr)); padding-left: 0; }
+  .slot-fields > div { grid-column: span 2; }
+  .slot-fields > div:nth-child(n+4) { grid-column: span 3; }
+}
+
 .skeleton { background: var(--surface-sunk); border-radius: var(--r-sm); animation: pulse 1.4s ease-in-out infinite; }
 .skeleton.title { height: 32px; width: 40%; margin-bottom: 12px; }
 .skeleton.line { height: 16px; width: 60%; margin-bottom: 24px; }

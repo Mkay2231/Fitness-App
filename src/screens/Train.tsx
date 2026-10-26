@@ -15,7 +15,7 @@ export default function Train() {
     if (!program) return { settings, program: undefined };
     const open = await openSession();
     const next = open ? program.days.find((d) => d.id === open.dayId)! : await nextProgramDay(program);
-    const plan = await planFor(next, settings, open?.id);
+    const plan = await planFor(next, settings, open?.id, open?.swaps);
     const exercises = new Map((await db.exercises.toArray()).map((e) => [e.id, e]));
     const sessions = (await db.sessions.filter((s) => s.finishedAt !== null).toArray()).sort((a, b) => (a.startedAt < b.startedAt ? 1 : -1)).slice(0, 12);
     const counts = await Promise.all(sessions.map((s) => db.sets.where('sessionId').equals(s.id!).count()));
@@ -75,8 +75,8 @@ export default function Train() {
       </section>
 
       <section className="section" aria-labelledby="program-h">
-        <div className="panel-head"><h2 id="program-h">The program</h2><Link to="/settings" className="small">Change</Link></div>
-        <p className="muted small">Alternate the sessions on your training days. Weights go up when every set reaches the top of its rep range.</p>
+        <div className="panel-head"><h2 id="program-h">The programme</h2><Link to="/train/edit" className="btn ghost">Edit programme</Link></div>
+        <p className="muted small">{program.customised ? 'Your edited version. ' : 'Built from your profile. '}Sessions rotate in order on your training days. Weights go up when every set reaches the top of its rep range.</p>
         {program.days.map((d) => (
           <div key={d.id} className="panel" style={{ padding: '16px 16px 4px' }}>
             <h3>{d.name}</h3>

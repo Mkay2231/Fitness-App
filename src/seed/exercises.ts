@@ -1,51 +1,41 @@
 import type { Exercise } from '../db';
 
+// Built-in exercise library. Names, equipment and muscles only: no how-to
+// instructions are included until they can be taken from a cited source.
+// Add them per exercise as `instructions: { steps, source, url }`.
+
 export const EXERCISES: Exercise[] = [
-  // Gym
-  { id: 'leg-press', name: 'Leg press', equipment: 'machine', primary: 'quads', secondary: ['glutes'],
-    cues: ['Feet shoulder-width, mid-platform', 'Lower until knees reach ~90°', 'Keep lower back on the pad'] },
-  { id: 'db-bench', name: 'Dumbbell bench press', equipment: 'dumbbell', primary: 'chest', secondary: ['triceps', 'front delts'], perHand: true,
-    cues: ['Shoulder blades squeezed back', 'Lower to chest level, elbows ~45° from body', 'Press up and slightly in'] },
-  { id: 'lat-pulldown', name: 'Lat pulldown', equipment: 'cable', primary: 'back', secondary: ['biceps'],
-    cues: ['Grip just wider than shoulders', 'Pull the bar to upper chest', 'Control it back up, arms straight'] },
-  { id: 'db-rdl', name: 'Dumbbell Romanian deadlift', equipment: 'dumbbell', primary: 'hamstrings', secondary: ['glutes', 'back'], perHand: true,
-    cues: ['Soft knees, push hips back', 'Dumbbells slide down the thighs', 'Stop when hamstrings stretch; back stays flat'] },
-  { id: 'db-lateral-raise', name: 'Dumbbell lateral raise', equipment: 'dumbbell', primary: 'side delts', secondary: [], perHand: true,
-    cues: ['Slight bend in elbows', 'Raise to shoulder height, not higher', 'Lower slowly'] },
-  { id: 'cable-pushdown', name: 'Cable triceps pushdown', equipment: 'cable', primary: 'triceps', secondary: [],
-    cues: ['Elbows pinned to your sides', 'Straighten fully at the bottom', 'Only the forearms move'] },
-  { id: 'goblet-squat', name: 'Goblet squat', equipment: 'dumbbell', primary: 'quads', secondary: ['glutes'],
-    cues: ['Hold one dumbbell at the chest', 'Sit down between your heels', 'Chest up, knees track over toes'] },
-  { id: 'seated-cable-row', name: 'Seated cable row', equipment: 'cable', primary: 'back', secondary: ['biceps', 'rear delts'],
-    cues: ['Sit tall, slight knee bend', 'Pull handle to belly button', 'Squeeze shoulder blades, then reach forward'] },
-  { id: 'db-shoulder-press', name: 'Seated dumbbell shoulder press', equipment: 'dumbbell', primary: 'front delts', secondary: ['triceps'], perHand: true,
-    cues: ['Back against an upright bench', 'Start at ear height', 'Press up without arching your back'] },
-  { id: 'leg-curl', name: 'Lying or seated leg curl', equipment: 'machine', primary: 'hamstrings', secondary: [],
-    cues: ['Pad just above the heels', 'Curl fully, pause', 'Lower slowly'] },
-  { id: 'machine-chest-press', name: 'Machine chest press', equipment: 'machine', primary: 'chest', secondary: ['triceps', 'front delts'],
-    cues: ['Handles at mid-chest height', 'Press without locking elbows hard', 'Control the return'] },
-  { id: 'db-curl', name: 'Dumbbell curl', equipment: 'dumbbell', primary: 'biceps', secondary: [], perHand: true,
-    cues: ['Elbows stay by your sides', 'Turn palms up as you lift', 'No swinging'] },
-  { id: 'calf-raise', name: 'Standing calf raise', equipment: 'machine', primary: 'calves', secondary: [],
-    cues: ['Full stretch at the bottom, pause', 'Rise as high as possible', 'Slow and controlled'] },
-  // Home (adjustable dumbbells + bench)
-  { id: 'db-floor-press', name: 'Dumbbell bench or floor press', equipment: 'dumbbell', primary: 'chest', secondary: ['triceps', 'front delts'], perHand: true,
-    cues: ['On a bench, or lying on the floor if you have none', 'Elbows ~45° from body', 'Press up and slightly in'] },
-  { id: 'one-arm-row', name: 'One-arm dumbbell row', equipment: 'dumbbell', primary: 'back', secondary: ['biceps', 'rear delts'],
-    cues: ['Hand and knee on a bench or chair', 'Pull the dumbbell to your hip', 'Weight is per dumbbell; do both sides'] },
-  { id: 'db-overhead-ext', name: 'Overhead dumbbell triceps extension', equipment: 'dumbbell', primary: 'triceps', secondary: [],
-    cues: ['Hold one dumbbell with both hands', 'Lower behind your head, elbows forward', 'Straighten fully'] },
-  { id: 'split-squat', name: 'Dumbbell split squat', equipment: 'dumbbell', primary: 'quads', secondary: ['glutes'], perHand: true,
-    cues: ['Long stance, back heel up', 'Drop the back knee straight down', 'Reps are per leg'] },
-  { id: 'push-up', name: 'Push-up', equipment: 'bodyweight', primary: 'chest', secondary: ['triceps', 'front delts'],
-    cues: ['Body in one straight line', 'Chest to fist height from the floor', 'Hands on a step or table if too hard'] },
-  { id: 'db-bent-row', name: 'Dumbbell bent-over row', equipment: 'dumbbell', primary: 'back', secondary: ['biceps', 'rear delts'], perHand: true,
-    cues: ['Hinge forward ~45°, flat back', 'Pull both dumbbells to your hips', 'Lower until arms are straight'] },
-  // Substitutes used when a limitation is set
-  { id: 'box-squat', name: 'Goblet squat to a box', equipment: 'dumbbell', primary: 'quads', secondary: ['glutes'],
-    cues: ['Sit back to a chair or bench at a height that feels pain-free', 'Touch lightly, don\'t drop onto it', 'Stand up by pushing through your whole foot'] },
-  { id: 'glute-bridge', name: 'Dumbbell glute bridge', equipment: 'dumbbell', primary: 'glutes', secondary: ['hamstrings'],
-    cues: ['Lie on the floor, knees bent, dumbbell on your hips', 'Squeeze your glutes to lift your hips', 'Keep your ribs down; your lower back stays relaxed'] },
-  { id: 'db-hip-thrust', name: 'Dumbbell hip thrust', equipment: 'dumbbell', primary: 'glutes', secondary: ['hamstrings'],
-    cues: ['Upper back on a bench or sofa edge', 'Dumbbell on hips', 'Drive hips up and squeeze, ribs down'] },
+  // Quads
+  { id: 'leg-press', name: 'Leg press', equipment: 'machine', primary: 'quads', secondary: ['glutes'] },
+  { id: 'goblet-squat', name: 'Goblet squat', equipment: 'dumbbell', primary: 'quads', secondary: ['glutes'] },
+  { id: 'split-squat', name: 'Dumbbell split squat', equipment: 'dumbbell', primary: 'quads', secondary: ['glutes'], perHand: true },
+  { id: 'box-squat', name: 'Goblet squat to a box', equipment: 'dumbbell', primary: 'quads', secondary: ['glutes'] },
+  // Chest
+  { id: 'db-bench', name: 'Dumbbell bench press', equipment: 'dumbbell', primary: 'chest', secondary: ['triceps', 'front delts'], perHand: true },
+  { id: 'db-floor-press', name: 'Dumbbell bench or floor press', equipment: 'dumbbell', primary: 'chest', secondary: ['triceps', 'front delts'], perHand: true },
+  { id: 'machine-chest-press', name: 'Machine chest press', equipment: 'machine', primary: 'chest', secondary: ['triceps', 'front delts'] },
+  { id: 'push-up', name: 'Push-up', equipment: 'bodyweight', primary: 'chest', secondary: ['triceps', 'front delts'] },
+  // Back
+  { id: 'lat-pulldown', name: 'Lat pulldown', equipment: 'cable', primary: 'back', secondary: ['biceps'] },
+  { id: 'seated-cable-row', name: 'Seated cable row', equipment: 'cable', primary: 'back', secondary: ['biceps', 'rear delts'] },
+  { id: 'one-arm-row', name: 'One-arm dumbbell row', equipment: 'dumbbell', primary: 'back', secondary: ['biceps', 'rear delts'] },
+  { id: 'db-bent-row', name: 'Dumbbell bent-over row', equipment: 'dumbbell', primary: 'back', secondary: ['biceps', 'rear delts'], perHand: true },
+  // Hamstrings and glutes
+  { id: 'db-rdl', name: 'Dumbbell Romanian deadlift', equipment: 'dumbbell', primary: 'hamstrings', secondary: ['glutes', 'back'], perHand: true },
+  { id: 'leg-curl', name: 'Lying or seated leg curl', equipment: 'machine', primary: 'hamstrings', secondary: [] },
+  { id: 'db-hip-thrust', name: 'Dumbbell hip thrust', equipment: 'dumbbell', primary: 'glutes', secondary: ['hamstrings'] },
+  { id: 'glute-bridge', name: 'Dumbbell glute bridge', equipment: 'dumbbell', primary: 'glutes', secondary: ['hamstrings'] },
+  // Shoulders
+  { id: 'db-shoulder-press', name: 'Seated dumbbell shoulder press', equipment: 'dumbbell', primary: 'front delts', secondary: ['triceps'], perHand: true },
+  { id: 'machine-shoulder-press', name: 'Machine shoulder press', equipment: 'machine', primary: 'front delts', secondary: ['triceps'] },
+  { id: 'db-lateral-raise', name: 'Dumbbell lateral raise', equipment: 'dumbbell', primary: 'side delts', secondary: [], perHand: true },
+  { id: 'cable-lateral-raise', name: 'Cable lateral raise', equipment: 'cable', primary: 'side delts', secondary: [] },
+  // Arms
+  { id: 'cable-pushdown', name: 'Cable triceps pushdown', equipment: 'cable', primary: 'triceps', secondary: [] },
+  { id: 'db-overhead-ext', name: 'Overhead dumbbell triceps extension', equipment: 'dumbbell', primary: 'triceps', secondary: [] },
+  { id: 'db-curl', name: 'Dumbbell curl', equipment: 'dumbbell', primary: 'biceps', secondary: [], perHand: true },
+  { id: 'hammer-curl', name: 'Dumbbell hammer curl', equipment: 'dumbbell', primary: 'biceps', secondary: [], perHand: true },
+  // Calves
+  { id: 'calf-raise', name: 'Standing calf raise (machine)', equipment: 'machine', primary: 'calves', secondary: [] },
+  { id: 'db-calf-raise', name: 'Dumbbell calf raise', equipment: 'dumbbell', primary: 'calves', secondary: [], perHand: true },
 ];

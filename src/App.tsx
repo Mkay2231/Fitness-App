@@ -8,6 +8,7 @@ import { UnitsProvider } from './units';
 import Onboarding from './screens/Onboarding';
 import Today from './screens/Today';
 import Train from './screens/Train';
+import ProgramEditor from './screens/ProgramEditor';
 import Workout from './screens/Workout';
 import Food from './screens/Food';
 import Progress from './screens/Progress';
@@ -64,6 +65,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Today />} />
           <Route path="/train" element={<Train />} />
+          <Route path="/train/edit" element={<ProgramEditor />} />
           <Route path="/workout/:id" element={<Workout />} />
           <Route path="/food" element={<Food />} />
           <Route path="/progress" element={<Progress />} />

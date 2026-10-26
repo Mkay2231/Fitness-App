@@ -1,6 +1,8 @@
 // Double progression: stay at a weight and add reps until every set reaches
 // the top of the rep range, then add the smallest available weight jump.
 
+import { daysBetween } from './dates';
+
 export interface Prescription {
   sets: number;
   repMin: number;
@@ -41,11 +43,17 @@ export function roundDownTo(x: number, step: number): number {
 
 const kg = (w: number | null) => (w === null ? 'bodyweight' : `${+w.toFixed(2)} kg`);
 
+/** After this many days without the exercise, don't add weight yet. */
+export const SHORT_BREAK_DAYS = 14;
+/** After this many days, start about 10% lighter. */
+export const LONG_BREAK_DAYS = 28;
+
 /**
  * Next-session target for one exercise.
- * @param history this exercise's past sessions, most recent first.
+ * @param history this exercise's past finished sessions, most recent first.
+ * @param asOf the date of the session being planned; enables the missed-session rules.
  */
-export function suggestNext(p: Prescription, history: ExerciseSession[]): Suggestion {
+export function suggestNext(p: Prescription, history: ExerciseSession[], asOf?: string): Suggestion {
   const last = history[0];
   if (!last || last.sets.length === 0) {
     return {
@@ -64,6 +72,25 @@ export function suggestNext(p: Prescription, history: ExerciseSession[]): Sugges
   const minReps = Math.min(...last.sets.map((s) => s.reps));
   const allTop = last.sets.length >= p.sets && last.sets.every((s) => s.reps >= p.repMax);
   const anyBelow = last.sets.some((s) => s.reps < p.repMin);
+  const gap = asOf ? daysBetween(last.date, asOf) : 0;
+
+  if (gap >= LONG_BREAK_DAYS) {
+    if (bodyweight) {
+      return {
+        kind: 'hold', weightKg: weight, targetReps: p.repMin,
+        reasons: [`Last done ${gap} days ago.`, `Ease back in at ${p.repMin} reps a set before pushing for more.`],
+      };
+    }
+    const w = weight as number;
+    const reduced = Math.max(0, Math.min(roundDownTo(w * REDUCE_FACTOR, p.increment), w - p.increment));
+    return {
+      kind: 'reduce', weightKg: reduced, targetReps: p.repMin,
+      reasons: [
+        `Last done ${gap} days ago, at ${kg(w)}.`,
+        `Strength dips after a few weeks off, so start about 10% lighter at ${kg(reduced)} and build back up.`,
+      ],
+    };
+  }
 
   if (last.sets.length < p.sets) {
     return {
@@ -83,6 +110,15 @@ export function suggestNext(p: Prescription, history: ExerciseSession[]): Sugges
         reasons: [
           `All ${p.sets} sets reached ${p.repMax} reps.`,
           'Make it harder: slow the lowering to 3 seconds, add a backpack with weight, or move to a harder variation.',
+        ],
+      };
+    }
+    if (gap >= SHORT_BREAK_DAYS) {
+      return {
+        kind: 'hold', weightKg: weight, targetReps: p.repMax,
+        reasons: [
+          `All sets reached ${p.repMax} reps last time, but that was ${gap} days ago.`,
+          `Repeat ${kg(weight)} first; if it still feels solid, the weight goes up next session.`,
         ],
       };
     }

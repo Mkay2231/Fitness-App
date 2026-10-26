@@ -18,7 +18,7 @@ export default function Today() {
     const open = await openSession();
     const doneToday = await db.sessions.where('date').equals(date).filter((s) => s.finishedAt !== null).first();
     const day = program ? (open ? program.days.find((d) => d.id === open.dayId) : await nextProgramDay(program)) : undefined;
-    const plan = day ? await planFor(day, settings, open?.id) : [];
+    const plan = day ? await planFor(day, settings, open?.id, open?.swaps) : [];
     const openSets = open ? await db.sets.where('sessionId').equals(open.id!).count() : 0;
     const doneSets = doneToday ? await db.sets.where('sessionId').equals(doneToday.id!).count() : 0;
     const doneDay = doneToday ? program?.days.find((d) => d.id === doneToday.dayId) : undefined;

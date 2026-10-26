@@ -63,6 +63,14 @@ scripts/
 - Keep the weight and add reps until every set reaches the top of the rep range, then add your smallest jump (set per equipment type in *More*).
 - One session with a set below the range: repeat the weight. Two sessions in a row: drop about 10%.
 - Bodyweight exercises progress by reps, then a harder variation.
+- **First time on an exercise:** no weight is suggested. You pick one for the rep range, and later targets come from what you log.
+- **Missed sessions:** if your last session of an exercise was 14+ days ago, the weight holds instead of going up. After 28+ days, it starts about 10% lighter (rounded down to your weight jump).
+- **Only finished workouts count.** An unfinished session in progress doesn't affect the targets.
+- **Exercise changes:** every exercise keeps its own history. A swap, or a new exercise in the programme, starts from its own record and never borrows another exercise's numbers.
+- **Weight jumps:** they come from Settings, per equipment type (dumbbell, barbell, machine, cable), in kg or lb.
+- **Effort (RIR) is optional:** progression uses reps against the rep range, so sets logged without reps in reserve count fully.
+
+The rules live in `src/rules/progression.ts`, with tests in `progression.test.ts`. Each suggestion carries its reasons, shown under "Why this target".
 
 **Missing vs zero.** A day with no food entries is *not logged* and is left out of averages. Only days you mark complete count, and "I ate nothing" is a separate, explicit action. A planned training day with no workout shows as *not logged*, not as a rest day.
 
@@ -95,6 +103,21 @@ npm run check:profile   # second terminal: setup → reload → edit → reload,
 - **No accounts or server:** for one person on one phone an account adds nothing. The app has no server, no account and no secrets. The USDA key is used only by a script on your computer.
 - **Limits of local storage:** data does not sync between devices. Clearing the browser's site data, or uninstalling the installed app, deletes it. The app asks the browser to keep its storage and offers JSON export and restore.
 - **When accounts become worth it:** multiple devices, automatic backup, or paying users. The plan then is Supabase: Postgres with row-level security so each user can read only their own rows, plus a server function holding any API keys. The free tier covers one person; Pro is about $25/month. Costs get confirmed before it's set up.
+
+## Workouts and the programme
+
+- **Your programme:** your profile builds it. **Train → Edit programme** lets you rename sessions, add or remove sessions (1–7) and exercises, reorder them, and set sets, rep range, rest and how many reps to stop short. It also offers "Start from the recommended programme" to reset. Edits are validated: each exercise appears once per session, and rep ranges run low to high. Later profile changes warn before replacing your edits.
+- **During a workout:**
+  - Each exercise shows its prescription, today's target beside last time, and each set's previous numbers.
+  - You log weight, reps and optional reps in reserve. Logged sets can be edited or deleted, and extra sets added.
+  - The rest timer starts when you log a set.
+- **Swap exercise:** offers exercises for the same main muscle with your equipment. Use it for today only, or to update your programme. A swap is blocked once you've logged sets of that exercise, so its history stays accurate.
+- **Unfinished sessions:** saved as you go. Unlogged numbers you've typed and a running rest timer survive a reload, and Today and Train offer Resume.
+- **Exercise instructions:** none are shipped. Unsourced how-to text is not shown, and each exercise says instructions are unavailable until cited steps are added (`instructions: { steps, source, url }` in `src/seed/exercises.ts`). There are no demonstration images or videos.
+
+```bash
+npm run check:workout   # with `npm run dev` running: full session, edits, reload/resume, swap, progression, programme editor
+```
 
 ## Training plan (beginner)
 

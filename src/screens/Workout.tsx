@@ -1,13 +1,14 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { db, type ProgramSlot, type SetLog } from '../db';
-import { nowISO, planFor, type PlanRow } from '../data';
+import { db, type SetLog } from '../db';
+import { nowISO, planFor, replaceInProgram, swapForSession, type PlanRow } from '../data';
+import { alternativesFor } from '../rules/library';
 import { Icon } from '../icons';
 import { useOnline } from '../install';
 import { lastDate, lastText, restText, targetText, wt } from '../plan';
 import type { Suggestion } from '../rules/progression';
-import { Loading, Reasons } from '../ui';
+import { Loading, Reasons, Sheet } from '../ui';
 import { useUnits, type Units } from '../units';
 
 // ---------- Small persistence helpers (unfinished input and rest timer survive a reload) ----------
@@ -91,10 +92,11 @@ function parseSet(d: Draft, bodyweight: boolean, u: Units): { weightKg: number |
 
 const draftFrom = (s: Pick<SetLog, 'weightKg' | 'reps' | 'rir'>, u: Units): Draft => ({ weight: s.weightKg === null ? '' : String(u.wNum(s.weightKg)), reps: String(s.reps), rir: s.rir });
 
-function defaultDraft(slot: ProgramSlot, s: Suggestion, logged: SetLog[], u: Units): Draft {
+function defaultDraft(s: Suggestion, logged: SetLog[], u: Units): Draft {
   const prev = logged.at(-1);
   if (prev) return draftFrom(prev, u);
-  return { weight: s.weightKg === null ? '' : String(u.wNum(s.weightKg)), reps: String(s.targetReps), rir: slot.targetRir };
+  // Effort starts unrecorded; logging it is optional.
+  return { weight: s.weightKg === null ? '' : String(u.wNum(s.weightKg)), reps: String(s.targetReps), rir: null };
 }
 
 // ---------- Screen ----------
@@ -122,13 +124,13 @@ export default function Workout() {
     const program = await db.programs.get(session.programId);
     const day = program?.days.find((d) => d.id === session.dayId);
     const sets = await db.sets.where('sessionId').equals(id).sortBy('setIndex');
-    const plan = day ? await planFor(day, settings, id) : [];
+    const plan = day ? await planFor(day, settings, id, session.swaps, session.date) : [];
     const rows: Row[] = plan.map((r) => ({
       ...r,
       logged: sets.filter((s) => s.exerciseId === r.ex.id),
       increment: r.ex.equipment === 'bodyweight' ? 0 : settings.increments[r.ex.equipment],
     }));
-    return { session, day, rows, total: sets.length };
+    return { session, day, rows, total: sets.length, library: await db.exercises.toArray(), setting: settings.setting };
   }, [id]);
 
   const finished = data?.session?.finishedAt != null;
@@ -142,7 +144,23 @@ export default function Workout() {
       </div>
     );
   }
-  const { session, day, rows, total } = data;
+  const { session, day, rows, total, library, setting } = data;
+
+  async function swap(row: Row, newId: string, permanent: boolean) {
+    const planned = row.slot.exerciseId;
+    const ok = await saver.run(async () => {
+      if (permanent) {
+        await replaceInProgram(session!.programId, session!.dayId, planned, newId);
+        await swapForSession(id, planned, planned);
+      } else {
+        await swapForSession(id, planned, newId);
+      }
+    }, 'The swap wasn\'t saved. Try again.');
+    if (ok) {
+      setDrafts(({ [row.ex.id]: _, ...rest }) => rest);
+      setAnnounce(newId === planned ? `Back to ${row.swappedFrom?.name ?? 'the planned exercise'}.` : `Swapped to ${library!.find((e) => e.id === newId)?.name}.`);
+    }
+  }
   const planned = rows.reduce((n, r) => n + r.slot.sets, 0);
   const elapsedMs = (finished ? Date.parse(session.finishedAt!) : now) - Date.parse(session.startedAt);
   const elapsed = restText(Math.max(0, Math.floor(elapsedMs / 1000)));
@@ -229,7 +247,7 @@ export default function Workout() {
           key={row.ex.id}
           row={row}
           finished={finished}
-          draft={drafts[row.ex.id] ?? defaultDraft(row.slot, row.suggestion, row.logged, u)}
+          draft={drafts[row.ex.id] ?? defaultDraft(row.suggestion, row.logged, u)}
           setDraft={(d) => setDrafts((cur) => ({ ...cur, [row.ex.id]: d }))}
           extraOpen={!!extra[row.ex.id]}
           openExtra={() => setExtra((e) => ({ ...e, [row.ex.id]: true }))}
@@ -237,6 +255,8 @@ export default function Workout() {
           onComplete={(d) => complete(row, d)}
           onUpdate={(s, d) => update(row, s, d)}
           onDelete={(s) => remove(row, s)}
+          alternatives={alternativesFor(row.slot.exerciseId, library!, setting!, rows.map((r) => r.ex.id).filter((x) => x !== row.ex.id))}
+          onSwap={(newId, permanent) => swap(row, newId, permanent)}
         />
       ))}
 
@@ -272,14 +292,68 @@ export default function Workout() {
 
 // ---------- One exercise ----------
 
-function ExerciseBlock({ row, finished, draft, setDraft, extraOpen, openExtra, justDone, onComplete, onUpdate, onDelete }: {
+function Instructions({ ex }: { ex: PlanRow['ex'] }) {
+  if (!ex.instructions) {
+    return (
+      <p className="small muted" style={{ margin: '4px 0 8px' }}>
+        No verified instructions for this exercise in the app yet, and Rep Ledger doesn't show unsourced how-tos. Ask a gym instructor to show you, or use a demonstration from a source you trust, and start light.
+      </p>
+    );
+  }
+  return (
+    <>
+      <ol className="reasons">{ex.instructions.steps.map((s) => <li key={s}>{s}</li>)}</ol>
+      <p className="hint">Source: <a href={ex.instructions.url} target="_blank" rel="noreferrer">{ex.instructions.source}</a></p>
+    </>
+  );
+}
+
+function SwapSheet({ row, alternatives, onSwap, onClose }: {
+  row: Row; alternatives: PlanRow['ex'][]; onSwap: (id: string, permanent: boolean) => void; onClose: () => void;
+}) {
+  const [picked, setPicked] = useState<string | null>(null);
+  const planned = row.swappedFrom ?? row.ex;
+  return (
+    <Sheet title={`Swap ${row.ex.name}`} onClose={onClose}>
+      {row.logged.length > 0 ? (
+        <p className="small">You've logged {row.logged.length} set{row.logged.length === 1 ? '' : 's'} of {row.ex.name} today. Delete them first if you want to swap, so each exercise's history stays accurate.</p>
+      ) : alternatives.length === 0 ? (
+        <p className="small">No other exercise in the library trains the {planned.primary} with the equipment you have.</p>
+      ) : (
+        <>
+          <p className="hint" style={{ marginTop: 0 }}>Same main muscle ({planned.primary}), equipment you have. Each exercise keeps its own history, so the swap starts from its own record.</p>
+          <div className="choices" role="radiogroup" aria-label="Replacement exercise" style={{ margin: '12px 0' }}>
+            {alternatives.map((e) => (
+              <button key={e.id} type="button" role="radio" aria-checked={picked === e.id} className="choice" onClick={() => setPicked(e.id)}>
+                <span className="choice-title">{e.name}</span>
+                <span className="choice-hint">{e.equipment === 'bodyweight' ? 'Bodyweight' : e.equipment[0].toUpperCase() + e.equipment.slice(1)}{e.secondary.length ? ` · also ${e.secondary.join(', ')}` : ''}</span>
+              </button>
+            ))}
+          </div>
+          <div className="stack">
+            <button className="primary block" disabled={!picked} onClick={() => picked && onSwap(picked, false)}>Swap for today only</button>
+            <button className="block" disabled={!picked} onClick={() => picked && onSwap(picked, true)}>Swap and update my programme</button>
+          </div>
+        </>
+      )}
+      {row.swappedFrom && row.logged.length === 0 && (
+        <button className="ghost block" style={{ marginTop: 8 }} onClick={() => onSwap(row.slot.exerciseId, false)}>Go back to {row.swappedFrom.name}</button>
+      )}
+    </Sheet>
+  );
+}
+
+function ExerciseBlock({ row, finished, draft, setDraft, extraOpen, openExtra, justDone, onComplete, onUpdate, onDelete, alternatives, onSwap }: {
   row: Row; finished: boolean; draft: Draft; setDraft: (d: Draft) => void;
   extraOpen: boolean; openExtra: () => void; justDone: number | null;
   onComplete: (d: Draft) => Promise<string | null>;
   onUpdate: (s: SetLog, d: Draft) => Promise<string | null>;
   onDelete: (s: SetLog) => void;
+  alternatives: PlanRow['ex'][];
+  onSwap: (id: string, permanent: boolean) => void;
 }) {
   const { slot, ex, suggestion, last, logged } = row;
+  const [swapping, setSwapping] = useState(false);
   const bodyweight = ex.equipment === 'bodyweight';
   const u = useUnits();
   const unit = ex.perHand ? `${u.wu} each` : u.wu;
@@ -296,7 +370,8 @@ function ExerciseBlock({ row, finished, draft, setDraft, extraOpen, openExtra, j
           <div>
             <h2 id={`ex-${ex.id}`}>{ex.name}</h2>
             <p className="ex-rx">{slot.sets} sets · {slot.repMin}–{slot.repMax} reps · rest {restText(slot.restSec)} · stop ~{slot.targetRir} reps short</p>
-            {slot.note && <p className="ex-note"><Icon name="info" size="sm" />{slot.note}</p>}
+            {row.swappedFrom && <p className="ex-note"><Icon name="info" size="sm" />Swapped today for {row.swappedFrom.name}. Your programme is unchanged.</p>}
+            {slot.note && !row.swappedFrom && <p className="ex-note"><Icon name="info" size="sm" />{slot.note}</p>}
           </div>
           <span className={`tag${done ? ' ok' : ''}`}>{done && <Icon name="check" size="sm" />}{logged.length}/{slot.sets}</span>
         </div>
@@ -322,12 +397,14 @@ function ExerciseBlock({ row, finished, draft, setDraft, extraOpen, openExtra, j
         </details>
         <details className="ex-why" style={{ padding: '0 8px' }}>
           <summary>How to do it</summary>
-          <Reasons items={ex.cues} />
+          <Instructions ex={ex} />
         </details>
+        {!finished && <button className="ghost" onClick={() => setSwapping(true)}>Swap exercise</button>}
         {offerLastWeight && (
           <button className="ghost" onClick={() => setDraft({ ...draft, weight: String(u.wNum(lastWeight)) })}>Use {wt(u, lastWeight)} {u.wu} instead</button>
         )}
       </div>
+      {swapping && <SwapSheet row={row} alternatives={alternatives} onClose={() => setSwapping(false)} onSwap={(id, permanent) => { setSwapping(false); onSwap(id, permanent); }} />}
 
       <div className="sets" role="table" aria-label={`${ex.name} sets`}>
         <div className="sets-head" role="row">
@@ -363,13 +440,14 @@ function ExerciseBlock({ row, finished, draft, setDraft, extraOpen, openExtra, j
   );
 }
 
-function RirPicker({ value, onChange, idPrefix }: { value: number | null; onChange: (v: number) => void; idPrefix: string }) {
+function RirPicker({ value, onChange, idPrefix }: { value: number | null; onChange: (v: number | null) => void; idPrefix: string }) {
   return (
     <>
-      <span className="rir-label" id={`${idPrefix}-rir`}>Reps left in reserve: how many more could you have done?</span>
+      <span className="rir-label" id={`${idPrefix}-rir`}>Reps in reserve (optional): how many more could you have done?</span>
       <div className="rir" role="group" aria-labelledby={`${idPrefix}-rir`}>
         {RIR_OPTIONS.map((v) => (
-          <button key={v} type="button" aria-pressed={value === v} onClick={() => onChange(v)}>{v === 4 ? '4+' : v}</button>
+          // Tapping the selected value again clears it: effort is optional.
+          <button key={v} type="button" aria-pressed={value === v} onClick={() => onChange(value === v ? null : v)}>{v === 4 ? '4+' : v}</button>
         ))}
       </div>
     </>
