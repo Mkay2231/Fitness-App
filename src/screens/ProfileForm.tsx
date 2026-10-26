@@ -6,7 +6,7 @@ import { AVOID_LABELS, type AvoidCategory } from '../rules/foodPrefs';
 import type { Activity, Sex } from '../rules/nutrition';
 import { LIMITATION_LABELS, type Experience, type Limitation, type Setting } from '../rules/program';
 import { fromLength, fromWeight, tidy, toLength, toWeight, type LengthUnit, type WeightUnit } from '../rules/units';
-import { Chips } from '../ui';
+import { Chips, onRadioKeys, radioTabIndex } from '../ui';
 
 export const WEEKDAYS = [
   { value: 1, label: 'Mon' }, { value: 2, label: 'Tue' }, { value: 3, label: 'Wed' }, { value: 4, label: 'Thu' },
@@ -103,9 +103,10 @@ function Choice<T extends string | number>({ name, options, value, onChange }: {
   name: string; options: { value: T; label: string; hint: string }[]; value: T; onChange: (v: T) => void;
 }) {
   return (
-    <div className="choices" role="radiogroup" aria-label={name}>
-      {options.map((o) => (
-        <button key={String(o.value)} type="button" role="radio" aria-checked={value === o.value} className="choice" onClick={() => onChange(o.value)}>
+    <div className="choices" role="radiogroup" aria-label={name} onKeyDown={onRadioKeys}>
+      {options.map((o, i) => (
+        <button key={String(o.value)} type="button" role="radio" aria-checked={value === o.value} className="choice"
+          tabIndex={radioTabIndex(value === o.value, i, options.some((x) => x.value === value))} onClick={() => onChange(o.value)}>
           <span className="choice-title">{o.label}</span>
           <span className="choice-hint">{o.hint}</span>
         </button>

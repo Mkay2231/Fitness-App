@@ -2,29 +2,52 @@
 
 A personal, mobile-first training and nutrition log for building muscle. It tells you what to train today, records your sets, logs your food (with sourced nutrition values), tracks body weight and measurements, and builds a weekly review with rule-based suggestions that you accept or reject.
 
-All data stays in the browser on your device (IndexedDB). There is no server or account yet.
+All data stays in the browser on your device (IndexedDB). There is no server and no account.
 
-## Run it
+## What works
 
-You need [Node.js](https://nodejs.org) 20 or newer (`node --version`).
+- **Setup and profile:** goal, units, body details, experience, equipment, days, session length, limitations and foods you avoid. Each answer changes something specific, and edits that would change your programme or targets are shown for review first.
+- **Today:** the session for today with targets beside last time, a body-weight entry, an optional check-in, food status, and the week so far.
+- **Workouts:**
+  - An editable programme.
+  - Logging weight, reps and optional reps in reserve, plus editing, adding and deleting sets.
+  - A rest timer, exercise swaps, and resuming after a reload or with no signal.
+- **Progression:** transparent rules, covering first sessions, missed weeks, weight jumps and exercise changes.
+- **Food:** 40 Nigerian staples from the FAO West African table (each food cites its source), your own foods, household measures, saved meals, and days marked complete or partial.
+- **Progress:** weight trend (labelled as scale weight), measurements, workout completion and lift history.
+- **Weekly review:** a summary, planned versus completed sessions, lift comparisons, and nutrition averages from complete days only. It also lists missing data and conflicting signals, and makes at most 3 suggestions, each with its evidence and rule. You accept, reject or note each one, and the history is dated.
+- **Your data:** JSON backup and restore, CSV exports, and delete-all.
+- **Phone install and offline use:** works over HTTPS; the offline check passes.
+
+## Set up and run
+
+You need [Node.js](https://nodejs.org) 22 or newer (`node --version`) and Git.
 
 ```bash
-npm install          # once, and after pulling changes that touch package.json
-npm run dev          # open http://localhost:5173 on this computer
-npm run dev:phone    # also reachable from your phone on the same Wi-Fi (URL is printed)
-npm test             # run the rules engine tests
+git clone https://github.com/Mkay2231/Fitness-App.git
+cd Fitness-App
+npm install
+npm run dev          # http://localhost:5173 on this computer
+npm run dev:phone    # also reachable from a phone on the same Wi-Fi (no offline mode over plain http)
+```
+
+Checks before you deploy:
+
+```bash
+npm test             # 137 unit tests: rules, storage, backups, contrast
+npm run typecheck
 npm run build        # production build into dist/
+npm run dev          # leave running, then in a second terminal:
+npm run check:all    # browser checks in the Edge already on Windows (BROWSER=chrome for Chrome)
+npm run preview      # serves dist/; then in a second terminal:
+npm run check:offline
 ```
 
-Over Wi-Fi (`dev:phone`) the app works, but **offline mode only turns on over HTTPS** (or on `localhost`). To use it offline at the gym, deploy it (see *Deploy to Netlify*).
-
-To check offline mode end to end (uses the Edge installed on Windows; set `BROWSER=chrome` for Chrome):
-
-```bash
-npm run build
-npm run preview         # leave running
-npm run check:offline   # in a second terminal
-```
+`check:all` runs four checks:
+- **`check:audit`:** 360 px layout, touch targets, keyboard-only use, dialog focus, export, failed restore, delete-all.
+- **`check:profile`:** setup, reloads and profile edits.
+- **`check:workout`:** a full session, edits, interruption, a swap, progression and the programme editor.
+- **`check:review`:** seeded records, suggestions, decisions and check-ins.
 
 > The project is in OneDrive. OneDrive syncing `node_modules` (thousands of files) can be slow or lock files. If `npm install` misbehaves, right-click `node_modules` → *Free up space*, or move the project out of OneDrive.
 
@@ -32,20 +55,20 @@ npm run check:offline   # in a second terminal
 
 ```
 src/
-  rules/          Pure calculation logic, no UI, no database. Tested.
-    nutrition.ts    Starting targets (Mifflin-St Jeor) and calorie adjustments
-    progression.ts  Double progression, deloads, estimated 1RM
-    trend.ts        7-day average weight and 14-day trend
-    review.ts       Weekly review and recommendations
-    volume.ts       Weekly sets per muscle
-    *.test.ts       Tests: run with `npm test`
-  db.ts           Database tables (Dexie/IndexedDB) and their types
-  data.ts         Glue between the database and the rules
-  seed/           Built-in exercises, programs and foods
-  screens/        One file per screen (Today, Workout, Food, Progress, Review, Settings)
-  ui.tsx          Small shared UI pieces
-scripts/
-  import-usda.mjs Builds src/seed/foods.ts from USDA FoodData Central
+  rules/            Pure calculation logic, no UI or database, all tested
+    nutrition.ts      Starting targets and calorie adjustments
+    progression.ts    Double progression, missed-session rules, estimated 1RM
+    program.ts        Builds your programme from your profile
+    library.ts        Exercise substitutions and programme validation
+    performance.ts    Compares a lift with its previous session
+    review.ts         Weekly review, gaps, conflicts, suggestions, summary
+    trend.ts, units.ts, foodPrefs.ts, volume.ts, dates.ts
+  db.ts             Database tables (Dexie/IndexedDB) and upgrades
+  data.ts           Database ↔ rules glue, backup, CSV export, delete-all
+  seed/             Built-in exercises, programme templates, foods (generated)
+  screens/          One file per screen
+scripts/            Food importers and the browser checks (check:*)
+public/_headers     Cache and security headers for Netlify or Cloudflare Pages
 ```
 
 **To change a rule** (e.g. protein per kg, or when weight goes up), edit the constant or function in `src/rules/`, update or add a test next to it, and run `npm test`. The screens only display what the rules return.
@@ -60,7 +83,7 @@ scripts/
 - Otherwise it suggests a change proportional to the gap, capped at ±250 kcal per review.
 
 **Progression (each exercise, each session).** This is double progression:
-- Keep the weight and add reps until every set reaches the top of the rep range, then add your smallest jump (set per equipment type in *More*).
+- Keep the weight and add reps until every set reaches the top of the rep range, then add your smallest jump (set per equipment type in *Settings*).
 - One session with a set below the range: repeat the weight. Two sessions in a row: drop about 10%.
 - Bodyweight exercises progress by reps, then a harder variation.
 - **First time on an exercise:** no weight is suggested. You pick one for the rep range, and later targets come from what you log.
@@ -153,11 +176,11 @@ npm run check:review   # with `npm run dev` running: seeds two weeks of records,
 
 ## Training plan (beginner)
 
-The plan is full body, 3 days a week on non-consecutive days (default Mon/Wed/Fri), alternating sessions A and B, about 50–60 minutes each. There are gym and home (dumbbells + bench) versions; switch in *More*.
+The plan is full body, 3 days a week on non-consecutive days (default Mon/Wed/Fri), alternating sessions A and B, about 45–50 minutes each. There are gym and home (dumbbells + bench) versions; switch in *Settings → Profile*, or edit it in *Train → Edit programme*.
 
 - Main lifts: 3 sets of 8–12 reps, 2–2.5 min rest. Small muscles: 2 sets of 10–15, 60–90 s rest.
-- Stop each set with about 2 reps in reserve (RIR). The app explains RIR on the workout screen.
-- First session: pick conservative weights. The app adjusts from what you log.
+- Stop each set with about 2 reps in reserve (3 if you chose "New to lifting"). Logging reps in reserve is optional.
+- First session: the app suggests no weight. Pick a conservative one, and later targets come from what you log.
 
 ## Food data
 
@@ -198,31 +221,68 @@ Without a key it uses USDA's shared demo key, which is often rate-limited. To us
 `.env.local` is git-ignored, so the key never reaches GitHub. It is only used on your computer to build the food list, never inside the app or on Netlify.
 
 Every household measure records how its grams are known: a USDA portion weight, *weighed by me*, or *my estimate, not weighed*. Add your own (serving spoon, cooking spoon, wrap, cup) from any food's portion screen.
-## Backups
+## Your data: export and deletion
 
-*More → Export backup* downloads all your data as JSON, and *Restore* loads it back. Data lives only in this browser until cloud sync exists, so export regularly.
+Data lives only in the browser where you use the app. *Settings → Your data* offers:
 
-## Deploy to Netlify
+- **Export full backup (JSON):** everything, restorable with *Restore from a backup*. A restore replaces all data in one step: if the file is broken, from another app, from a newer version or missing a profile, it's refused and nothing changes. Backups from before the profile update are upgraded on restore.
+- **Export for a spreadsheet (CSV):** workout sets, weigh-ins, measurements, food log (with sources) and check-ins, in kg and cm. These can't be restored.
+- **Delete all data:** removes every record on this device, including unfinished-workout drafts, and returns to setup.
 
-`netlify.toml` holds the build settings, so nothing needs typing in Netlify:
+There are no accounts, so there are no other users' records to protect against. Anyone who can unlock your phone can open the app, just as with your other apps.
 
-1. On <https://app.netlify.com>, *Add new project → Import an existing project → GitHub*, and pick `Fitness-App`.
-2. Netlify runs `npm run build` and publishes `dist/`. Each push to `main` redeploys.
-3. Open the site on your phone: Android/Chrome shows **Install app** (also under *More*); on iPhone use Safari → Share → **Add to Home Screen**.
+## Deploy
 
-The free plan costs nothing for a personal app. The site is public, but your data is not: it stays in each phone's browser and is never uploaded.
+The app is a static site: `npm run build` produces `dist/` (about 0.8 MB). It needs no server, database or secrets, and either host below works. `public/_headers` sets caching and security headers on both.
+
+**Netlify** (settings in `netlify.toml`):
+1. On <https://app.netlify.com>, choose *Add new project → Import an existing project → GitHub*, and pick `Fitness-App`. Build command `npm run build`, publish directory `dist`; both are read from `netlify.toml`.
+2. Each push to `main` redeploys automatically. Pull requests get preview URLs.
+
+**Cloudflare Pages** (an alternative with more generous free limits for static sites): connect the repository, set the build command to `npm run build` and the output directory to `dist`, and add an environment variable `NODE_VERSION=24`.
+
+**After deploying**, open the site on your phone. On Android Chrome, use **Install app** (also in Settings). On iPhone, use Safari → Share → **Add to Home Screen**. Installing matters on iPhone: Safari can clear the storage of sites that aren't on the Home Screen after weeks without use.
+
+What becomes public: the app's code and the built-in food and exercise data. Your records never leave your phone. The GitHub repository is public, so its code and commit history (including the commit email) are already visible.
+
+## Environment variables
+
+| Variable | Where | Required | Purpose |
+|---|---|---|---|
+| none | Deployed app | – | The app runs entirely in the browser and holds no secrets |
+| `NODE_VERSION` | Host build settings | Set in `netlify.toml`; add manually on Cloudflare | Node 24 for the build |
+| `FDC_API_KEY` | `.env.local` on your computer (git-ignored; template in `.env.example`) | Optional | Your free USDA key for `npm run foods:import`. Never set it on the host |
+| `APP_URL`, `BROWSER` | Your terminal | Optional | Point the browser checks at another URL, or use `chrome` instead of Edge |
+
+## Recurring costs
+
+| Item | Cost now | Assumptions |
+|---|---|---|
+| Hosting (Netlify Free or Cloudflare Pages Free) | ₦0 | One user and a 0.8 MB static app. On Netlify Free, third-party guides report 300 credits a month and about 15 credits per production deploy. Netlify itself lists bandwidth at 20 credits per GB. Roughly 20 deploys a month would use the allowance, and Free sites pause instead of billing. Cloudflare Pages Free reportedly allows 500 builds a month and doesn't meter static traffic. Check both pricing pages before relying on these figures |
+| Web address | ₦0 | The free `*.netlify.app` or `*.pages.dev` address. A custom domain is optional, with yearly registrar pricing |
+| Database, accounts, sync | ₦0 | None used |
+| AI summaries | ₦0 | Off. Costs will be quoted before enabling |
+| Food data | ₦0 | USDA is public domain. FAO data is free for non-commercial use; a paid version needs FAO permission or another source |
+| If you later add accounts and sync | about $25/month | Estimate for a managed Postgres plan (e.g. Supabase Pro) once past a free tier. To be confirmed when needed |
 
 ## Known limitations
 
-- **Calorie evidence stays in kg:** the calorie-adjustment evidence text (weight trend vs goal) is written in kg, even when lb is selected. Lift comparisons, measurements, the summary and all screens follow your units.
+- **One device:** no sync and no automatic backup. Clearing site data deletes everything, so export a backup regularly.
+- **Not yet on a real phone:** checks ran in headless Edge at 360–390 px. iPhone Safari behaviour, including install and storage, is untested.
+- **Timer limits:** the rest timer only counts while the app is open. Vibration works on Android, not on iPhone.
+- **No instructions or demonstrations:** no cited source has been chosen yet, so exercises show "unavailable" rather than unsourced tips.
+- **Food gaps:** there are no composed Nigerian dishes (egusi soup, moi moi) and no recipe builder yet, and the USDA extras aren't imported until a key is set.
+- **Calorie evidence stays in kg:** the calorie-adjustment evidence text (weight trend vs goal) is written in kg even when lb is selected. Everything else follows your units.
 - **Fixed swap list:** limitation swaps cover the built-in exercises only and are not a substitute for a physiotherapist.
 - **Food preferences go by name:** a food you create named, say, "Mama's special" isn't recognised as beef.
-- **Units mid-workout:** numbers already typed into an unlogged set keep the unit they were typed in if you switch units during a workout.
-- **Not yet tested on a real phone:** checks run in headless Edge at phone size.
+- **Units mid-workout:** numbers already typed into an unlogged set keep their unit if you switch units during a workout.
+- **One flaky run:** the workout browser check failed once and then passed on three reruns; the cause wasn't found.
+- **Dev-only advisories:** `npm audit` reports 2 moderate issues in `exceljs`. It's a development-only tool used to import the FAO table and isn't part of the app (`npm audit --omit=dev` finds 0).
 
 ## Roadmap
 
-1. Deploy to Netlify (free) so the app is installable and works offline on your phone.
+1. Deploy (free) so the app installs and works offline on your phone.
 2. Add your usual meals, and a recipe builder for home-cooked dishes (jollof, egusi soup, moi moi) from cited ingredients.
-3. Claude explanations for the weekly review, via a small server function. The API key stays on the server, and costs are confirmed before enabling.
-4. Optional cloud sync and login (Supabase) for backup and multiple devices, and later for paying users.
+3. Cited exercise instructions from a source you approve.
+4. Claude explanations for the weekly review, via a small server function. The API key stays on the server, and costs are confirmed before enabling.
+5. Optional cloud sync and login (Supabase) for backup and multiple devices, and later for paying users.

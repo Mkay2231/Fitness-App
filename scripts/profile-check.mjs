@@ -62,8 +62,8 @@ try {
   const changes = await page.locator('.review-changes li').allTextContents();
   expect(changes.length > 0, 'no program changes listed');
   step(`profile edit lists program changes first: ${changes[0]}`);
-  await page.getByRole('button', { name: 'Update program' }).click();
-  await page.getByText('Program updated.').waitFor();
+  await page.getByRole('button', { name: 'Update programme' }).click();
+  await page.getByText('Programme updated.').waitFor();
   await page.reload();
   await page.getByRole('heading', { name: 'Profile' }).waitFor();
   expect(await pressed('30 min') === 'true', 'edited session length not kept');

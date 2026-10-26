@@ -8,7 +8,7 @@ import { Icon } from '../icons';
 import { useOnline } from '../install';
 import { lastDate, lastText, restText, targetText, wt } from '../plan';
 import type { Suggestion } from '../rules/progression';
-import { Loading, Reasons, Sheet } from '../ui';
+import { Loading, Reasons, Sheet, onRadioKeys, radioTabIndex } from '../ui';
 import { useUnits, type Units } from '../units';
 
 // ---------- Small persistence helpers (unfinished input and rest timer survive a reload) ----------
@@ -322,9 +322,10 @@ function SwapSheet({ row, alternatives, onSwap, onClose }: {
       ) : (
         <>
           <p className="hint" style={{ marginTop: 0 }}>Same main muscle ({planned.primary}), equipment you have. Each exercise keeps its own history, so the swap starts from its own record.</p>
-          <div className="choices" role="radiogroup" aria-label="Replacement exercise" style={{ margin: '12px 0' }}>
-            {alternatives.map((e) => (
-              <button key={e.id} type="button" role="radio" aria-checked={picked === e.id} className="choice" onClick={() => setPicked(e.id)}>
+          <div className="choices" role="radiogroup" aria-label="Replacement exercise" style={{ margin: '12px 0' }} onKeyDown={onRadioKeys}>
+            {alternatives.map((e, i) => (
+              <button key={e.id} type="button" role="radio" aria-checked={picked === e.id} className="choice"
+                tabIndex={radioTabIndex(picked === e.id, i, picked !== null)} onClick={() => setPicked(e.id)}>
                 <span className="choice-title">{e.name}</span>
                 <span className="choice-hint">{e.equipment === 'bodyweight' ? 'Bodyweight' : e.equipment[0].toUpperCase() + e.equipment.slice(1)}{e.secondary.length ? ` · also ${e.secondary.join(', ')}` : ''}</span>
               </button>

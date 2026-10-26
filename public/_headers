@@ -1,0 +1,19 @@
+# Read by both Netlify and Cloudflare Pages.
+
+# The service worker and manifest must never be cached, or phones keep
+# running an old version after a deploy.
+/sw.js
+  Cache-Control: no-cache
+/manifest.webmanifest
+  Content-Type: application/manifest+json
+  Cache-Control: no-cache
+
+# File names in /assets change on every build, so they can be cached for a year.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  X-Frame-Options: DENY

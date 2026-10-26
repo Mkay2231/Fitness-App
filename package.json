@@ -16,6 +16,8 @@
     "check:profile": "node scripts/profile-check.mjs",
     "check:workout": "node scripts/workout-check.mjs",
     "check:review": "node scripts/review-check.mjs",
+    "check:audit": "node scripts/audit-check.mjs",
+    "check:all": "npm run check:audit && npm run check:profile && npm run check:workout && npm run check:review",
     "foods:import": "node --env-file-if-exists=.env.local scripts/import-usda.mjs"
   },
   "dependencies": {
@@ -27,6 +29,7 @@
     "react-router-dom": "^7.18.4"
   },
   "devDependencies": {
+    "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vite-pwa/assets-generator": "^2.0.0",

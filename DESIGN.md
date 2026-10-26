@@ -8,10 +8,10 @@ A calm, athletic training journal. The next action is always obvious, numbers ar
 |---|---|---|
 | `--bg` | `#F6F5F1` | Page ground (warm off-white) |
 | `--surface` | `#FFFFFF` | Panels, exercise blocks, inputs, dock |
-| `--surface-sunk` | `#EFEDE7` | Quiet empty states, neutral tags, stepper buttons |
+| `--surface-sunk` | `#EFEDE7` | Quiet empty states, neutral tags, loading placeholders |
 | `--text` | `#202420` | Ink |
 | `--muted` | `#5B625B` | Secondary text (5.9:1 on bg) |
-| `--faint` | `#757B74` | Placeholders, previous-set values (4.6:1 on white) |
+| `--faint` | `#6A7069` | Placeholders, previous-set values (at least 4.5:1 on white, checked by `src/contrast.test.ts`) |
 | `--border` | `#E4E1D9` | Panel and row dividers |
 | `--border-strong` | `#8A8F88` | Input outlines (3.3:1, meets non-text contrast) |
 | `--accent` | `#245C45` | The one primary action per screen, active nav, logged state, focus ring (7.6:1 on white) |

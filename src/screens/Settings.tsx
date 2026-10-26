@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { db, type EquipmentKind, type Settings } from '../db';
-import { applyProgram, exportAll, importAll, nowISO, previewProgramChange, today } from '../data';
+import { applyProgram, deleteAllData, exportAll, exportCsv, importAll, nowISO, previewProgramChange, today, type CsvKind } from '../data';
 import { Icon } from '../icons';
 import { isIOS, isStandalone, useInstall } from '../install';
 import { initialTargets, type MacroTargets } from '../rules/nutrition';
@@ -17,6 +17,8 @@ const EQUIP: { id: EquipmentKind; label: string; hint: string }[] = [
   { id: 'cable', label: 'Cables', hint: 'One pin position on the stack' },
 ];
 
+const CSV_EXPORTS: [CsvKind, string][] = [['sets', 'Workout sets'], ['weights', 'Weigh-ins'], ['measurements', 'Measurements'], ['food', 'Food log'], ['checkins', 'Check-ins']];
+
 const PROGRAM_KEYS = ['setting', 'experience', 'sessionMinutes', 'limitations'] as const;
 const TARGET_KEYS = ['sex', 'age', 'heightCm', 'activity', 'gainRatePctPerWeek'] as const;
 
@@ -31,6 +33,7 @@ export default function SettingsScreen() {
   const [msg, setMsg] = useState('');
   const [pending, setPending] = useState<Pending | null>(null);
   const [formKey, setFormKey] = useState(0);
+  const fileInput = useRef<HTMLInputElement>(null);
   if (!settings) return <Loading label="Loading settings" />;
 
   async function saveProfile(d: ProfileDraft) {
@@ -63,7 +66,7 @@ export default function SettingsScreen() {
   async function acceptProgram() {
     await applyProgram(settings!);
     setPending((p) => (p && p.targets ? { ...p, programChanges: [] } : null));
-    setMsg('Program updated. Your logged workouts are unchanged.');
+    setMsg('Programme updated. Your logged workouts are unchanged.');
   }
 
   async function acceptTargets() {
@@ -78,6 +81,15 @@ export default function SettingsScreen() {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = `rep-ledger-backup-${today()}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  async function downloadCsv(kind: CsvKind) {
+    const blob = new Blob([await exportCsv(kind)], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `rep-ledger-${kind}-${today()}.csv`;
     a.click();
     URL.revokeObjectURL(a.href);
   }
@@ -108,11 +120,11 @@ export default function SettingsScreen() {
           <p className="hint" style={{ marginTop: 2 }}>Your profile is saved. These follow from it, and nothing changes until you accept.</p>
           {pending.programChanges.length > 0 && (
             <div style={{ marginTop: 12 }}>
-              <h3>Program</h3>
+              <h3>Programme</h3>
               <Reasons items={pending.programChanges} />
               <div className="row wrap" style={{ marginTop: 10 }}>
-                <button className="primary" onClick={acceptProgram}>Update program</button>
-                <button onClick={() => setPending((p) => (p && p.targets ? { ...p, programChanges: [] } : null))}>Keep current program</button>
+                <button className="primary" onClick={acceptProgram}>Update programme</button>
+                <button onClick={() => setPending((p) => (p && p.targets ? { ...p, programChanges: [] } : null))}>Keep current programme</button>
               </div>
             </div>
           )}
@@ -139,26 +151,31 @@ export default function SettingsScreen() {
 
       <Increments settings={settings} />
 
-      <section className="panel" aria-labelledby="ai-h">
-        <h2 id="ai-h">AI explanations</h2>
-        <p className="small" style={{ marginTop: 6 }}>Off. When turned on, Claude will explain your weekly review in plain language. It reads the numbers and never changes your plan. It needs a small server function to keep the API key secret, and costs are confirmed with you first.</p>
-      </section>
-
       <section className="panel" aria-labelledby="data-h">
         <h2 id="data-h">Your data</h2>
-        <p className="small" style={{ marginTop: 6 }}>Everything is stored only in this browser on this device, never on a server. {persisted ? 'The browser has agreed to keep it.' : 'The browser may clear it if storage runs low, so export a backup regularly.'}</p>
+        <p className="small" style={{ marginTop: 6 }}>Everything is stored only in this browser on this device. Nothing is sent to a server. {persisted ? 'The browser has agreed to keep it.' : 'The browser may clear it if storage runs low, so export a backup regularly.'}</p>
         <div className="stack">
-          <button className="block" onClick={download}>Export backup (JSON)</button>
-          <label className="btn block" style={{ fontWeight: 600 }}>
-            Restore from backup
-            <input type="file" accept="application/json" hidden onChange={(e) => e.target.files?.[0] && restore(e.target.files[0])} />
-          </label>
-          <button className="block danger" onClick={async () => {
-            if (!confirm('Delete ALL data on this device? Export a backup first. This cannot be undone.')) return;
-            await db.delete();
-            location.reload();
-          }}>Delete all data</button>
+          <button className="block" onClick={download}>Export full backup (JSON)</button>
+          <button className="block" onClick={() => fileInput.current?.click()}>Restore from a backup…</button>
+          <input ref={fileInput} type="file" accept="application/json,.json" hidden tabIndex={-1} aria-hidden="true"
+            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void restore(f); }} />
         </div>
+        <details style={{ marginTop: 8 }}>
+          <summary>Export for a spreadsheet (CSV)</summary>
+          <p className="hint" style={{ marginTop: 0 }}>Weights in kg and lengths in cm. CSV files can't be restored; use the JSON backup for that.</p>
+          <div className="stack">
+            {CSV_EXPORTS.map(([kind, label]) => <button key={kind} className="block" onClick={() => downloadCsv(kind)}>{label}</button>)}
+          </div>
+        </details>
+        <details style={{ marginTop: 4 }}>
+          <summary className="danger-summary">Delete all data</summary>
+          <p className="small">Removes your profile, workouts, food log, weights, measurements, check-ins and decisions from this device, including unfinished workouts. It can't be undone, so export a backup first.</p>
+          <button className="block danger" onClick={async () => {
+            if (!confirm('Delete ALL your data on this device? This cannot be undone.')) return;
+            await deleteAllData();
+            location.reload();
+          }}>Delete everything on this device</button>
+        </details>
       </section>
 
       <TargetHistory />

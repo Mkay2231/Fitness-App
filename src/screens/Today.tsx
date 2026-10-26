@@ -2,16 +2,17 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { db } from '../db';
-import { estimateMinutes, foodDaySummaries, getActiveProgram, nextProgramDay, openSession, planFor, startSession, targetsOn, today } from '../data';
+import { estimateMinutes, foodDaySummaries, getActiveProgram, nextProgramDay, openSession, planFor, startSession, targetsOn } from '../data';
 import { Icon } from '../icons';
 import { PlanList } from '../plan';
 import { addDays, isoWeekday, weekDates, weekStart } from '../rules/dates';
 import { Loading, fmt, fmtDate } from '../ui';
 import { useUnits } from '../units';
 import CheckIn from './CheckIn';
+import { useToday } from '../useToday';
 
 export default function Today() {
-  const date = today();
+  const date = useToday();
   const navigate = useNavigate();
   const data = useLiveQuery(async () => {
     const settings = (await db.settings.get('me'))!;

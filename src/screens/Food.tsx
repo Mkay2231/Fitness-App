@@ -5,6 +5,7 @@ import { db, type Food as FoodItem, type FoodSource, type MealSlot } from '../db
 import { nowISO, targetsOn, today, totalsFor } from '../data';
 import { addDays } from '../rules/dates';
 import { Icon } from '../icons';
+import { useToday } from '../useToday';
 import { fitsPreferences, type AvoidCategory } from '../rules/foodPrefs';
 import { Chips, Loading, Sheet, fmt, fmtDate } from '../ui';
 
@@ -34,7 +35,8 @@ const macros = (f: FoodItem, grams: number) => ({
 
 export default function Food() {
   const [params, setParams] = useSearchParams();
-  const date = params.get('date') ?? today();
+  const todayDate = useToday();
+  const date = params.get('date') ?? todayDate;
   const [adding, setAdding] = useState<MealSlot | null>(null);
 
   const data = useLiveQuery(async () => {

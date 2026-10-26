@@ -266,13 +266,84 @@ export async function exportAll(): Promise<string> {
   return JSON.stringify({ app: 'rep-ledger', version: 1, exportedAt: nowISO(), data }, null, 2);
 }
 
+/** Escapes one CSV cell (RFC 4180): quotes when needed, doubles inner quotes. */
+export function csvCell(v: unknown): string {
+  if (v === null || v === undefined) return '';
+  const s = String(v);
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+export const toCsv = (header: string[], rows: unknown[][]) => [header, ...rows].map((r) => r.map(csvCell).join(',')).join('\r\n');
+
+export type CsvKind = 'sets' | 'weights' | 'measurements' | 'food' | 'checkins';
+
+/** Spreadsheet-friendly export of one kind of record, always in kg and cm. */
+export async function exportCsv(kind: CsvKind): Promise<string> {
+  if (kind === 'sets') {
+    const sessions = new Map((await db.sessions.toArray()).map((s) => [s.id, s]));
+    const sets = (await db.sets.toArray()).sort((a, b) => (a.loggedAt < b.loggedAt ? -1 : 1));
+    return toCsv(['date', 'session_finished', 'exercise', 'set', 'weight_kg', 'reps', 'reps_in_reserve'],
+      sets.map((s) => [s.date, sessions.get(s.sessionId)?.finishedAt ? 'yes' : 'no', EXERCISE_NAMES[s.exerciseId] ?? s.exerciseId, s.setIndex + 1, s.weightKg, s.reps, s.rir]));
+  }
+  if (kind === 'weights') {
+    return toCsv(['date', 'weight_kg'], (await db.weights.orderBy('date').toArray()).map((w) => [w.date, w.kg]));
+  }
+  if (kind === 'measurements') {
+    return toCsv(['date', 'site', 'cm'], (await db.measurements.orderBy('date').toArray()).map((m) => [m.date, m.site, m.cm]));
+  }
+  if (kind === 'checkins') {
+    return toCsv(['date', 'sleep_hours', 'energy_1_5', 'soreness_1_5'], (await db.checkins.orderBy('date').toArray()).map((c) => [c.date, c.sleepHours, c.energy, c.soreness]));
+  }
+  const foods = new Map((await db.foods.toArray()).map((f) => [f.id, f]));
+  const marks = new Map((await db.foodDays.toArray()).map((d) => [d.date, d.complete]));
+  const entries = (await db.foodEntries.toArray()).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  return toCsv(['date', 'day_marked_complete', 'meal', 'food', 'portion', 'grams', 'kcal_est', 'protein_g_est', 'carbs_g_est', 'fat_g_est', 'source'],
+    entries.map((e) => {
+      const f = foods.get(e.foodId);
+      const k = e.grams / 100;
+      return [e.date, marks.get(e.date) ? 'yes' : 'no', e.slot, f?.name ?? e.foodId, e.portionText, Math.round(e.grams),
+        f ? Math.round(f.kcal * k) : '', f ? +(f.proteinG * k).toFixed(1) : '', f ? +(f.carbsG * k).toFixed(1) : '', f ? +(f.fatG * k).toFixed(1) : '', f?.source.citation ?? ''];
+    }));
+}
+
+/** Deletes every record on this device, including unfinished-workout drafts kept outside the database. */
+export async function deleteAllData() {
+  await db.delete();
+  try {
+    // Collect first (the standard key()/length API), then remove, so indices don't shift mid-loop.
+    const keys = Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i)).filter((k): k is string => !!k?.startsWith('rl-'));
+    keys.forEach((k) => localStorage.removeItem(k));
+  } catch { /* storage unavailable: nothing to clear */ }
+}
+
+/** Fills profile fields added after a backup was made, so older backups restore cleanly. */
+export function withProfileDefaults(s: Partial<Settings>): Partial<Settings> {
+  return {
+    experience: 'new', setting: 'gym', sessionMinutes: 60, limitations: [], avoidFoods: [],
+    weightUnit: 'kg', lengthUnit: 'cm', trainingDays: [1, 3, 5], ...s,
+  };
+}
+
+/**
+ * Replaces everything on this device with a backup. Runs in one transaction:
+ * if anything fails, nothing changes.
+ */
 export async function importAll(json: string) {
-  const parsed = JSON.parse(json);
-  if (parsed?.app !== 'rep-ledger' || typeof parsed.data !== 'object') throw new Error('This is not a Rep Ledger backup file.');
+  let parsed: { app?: string; version?: number; data?: Record<string, unknown[]> };
+  try {
+    parsed = JSON.parse(json);
+  } catch {
+    throw new Error("This file isn't a readable backup (it isn't valid JSON).");
+  }
+  if (parsed?.app !== 'rep-ledger' || typeof parsed.data !== 'object' || parsed.data === null) throw new Error('This is not a Rep Ledger backup file.');
+  if ((parsed.version ?? 1) > 1) throw new Error('This backup was made by a newer version of the app. Update the app first.');
+  const data = parsed.data;
+  if (!Array.isArray(data.settings) || data.settings.length === 0) throw new Error('This backup has no profile in it, so it was not restored.');
+  data.settings = data.settings.map((s) => withProfileDefaults(s as Partial<Settings>));
   await db.transaction('rw', TABLES.map((t) => db.table(t)), async () => {
     for (const t of TABLES) {
       await db.table(t).clear();
-      if (Array.isArray(parsed.data[t])) await db.table(t).bulkAdd(parsed.data[t]);
+      if (Array.isArray(data[t])) await db.table(t).bulkAdd(data[t]);
     }
   });
   await syncBuiltIns();
