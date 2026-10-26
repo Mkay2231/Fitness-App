@@ -301,6 +301,8 @@ The app is a static site: `npm run build` produces `dist/`. It needs no server o
 
 **After deploying**, open the site on your phone. On Android Chrome, use **Install app** (also in Settings). On iPhone, use Safari → Share → **Add to Home Screen**. Installing matters on iPhone: Safari can clear the storage of sites that aren't on the Home Screen after weeks without use.
 
+**Updates on phones:** the installed app checks for a newer version on start, every time it comes back to the front, when the internet returns, and hourly. It reloads into the new version by itself, on the same screen. *Settings → App version* shows the version and commit the phone is running, and has a **Check for updates** button. (Before this, an iPhone Home Screen app, which is usually resumed rather than restarted, could stay on an old version until it was fully closed.)
+
 What becomes public: the app's code, the built-in food and exercise data, and the Supabase URL and publishable key, which are meant to be public. Your records leave your phone only into your own account, and only when you sign in. The GitHub repository is public, so its code and commit history (including the commit email) are already visible.
 
 ## Environment variables

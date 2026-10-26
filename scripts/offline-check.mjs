@@ -45,6 +45,14 @@ try {
   await page.getByText('Offline · saved on phone').waitFor({ timeout: 5_000 });
   step('logged set still there after an offline reload, offline status shown');
 
+  // Back online: Settings shows the version and can check for a newer one.
+  await context.setOffline(false);
+  await page.goto(`${URL}#/settings`);
+  const version = await page.getByText(/^Version \d+\.\d+\.\d+ \(\w+\), built /).textContent({ timeout: 10_000 });
+  await page.getByRole('button', { name: 'Check for updates' }).click();
+  await page.getByText('You have the latest version.').waitFor({ timeout: 15_000 });
+  step(`Settings shows "${version}" and finds no newer version`);
+
   console.log('\nOFFLINE CHECK PASSED');
 } catch (e) {
   console.error('\nOFFLINE CHECK FAILED:', e.message);

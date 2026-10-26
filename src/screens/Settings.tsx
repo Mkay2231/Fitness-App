@@ -9,6 +9,7 @@ import { isIOS, isStandalone, useInstall } from '../install';
 import { initialTargets, type MacroTargets } from '../rules/nutrition';
 import { defaultIncrements, fromWeight, tidy, toWeight } from '../rules/units';
 import { Loading, Reasons } from '../ui';
+import { APP_COMMIT, APP_VERSION, BUILT_AT, checkForUpdate, type UpdateResult } from '../update';
 import { useUnits } from '../units';
 import { SyncLine } from './Account';
 import ProfileForm, { draftFromSettings, profileValues, type ProfileDraft } from './ProfileForm';
@@ -189,6 +190,8 @@ export default function SettingsScreen() {
       </section>
 
       <TargetHistory />
+
+      <AboutCard />
     </div>
   );
 }
@@ -236,6 +239,33 @@ function Increments({ settings }: { settings: Settings }) {
         </div>
       ))}
       {error && <p className="hint error-text" role="alert">{error}</p>}
+    </section>
+  );
+}
+
+const UPDATE_TEXT: Record<UpdateResult, string> = {
+  latest: 'You have the latest version.',
+  updating: 'A newer version is downloading. The app will reload into it in a moment.',
+  offline: 'You’re offline. The app checks again when you’re back online.',
+  unavailable: 'Updates are only checked in the published app, not while developing.',
+};
+
+function AboutCard() {
+  const [result, setResult] = useState<UpdateResult | 'checking' | 'failed' | null>(null);
+  const built = new Date(BUILT_AT).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  async function check() {
+    setResult('checking');
+    try { setResult(await checkForUpdate()); } catch { setResult('failed'); }
+  }
+  return (
+    <section className="panel" aria-labelledby="about-h">
+      <h2 id="about-h">App version</h2>
+      <p className="small" style={{ marginTop: 6 }}>Version <span className="num">{APP_VERSION}</span> (<span className="num">{APP_COMMIT}</span>), built {built}.</p>
+      <p className="hint">The app checks for a newer version every time you open it or come back to it.</p>
+      <button className="block" onClick={check} disabled={result === 'checking'}>{result === 'checking' ? 'Checking…' : 'Check for updates'}</button>
+      {result && result !== 'checking' && (
+        <p className="hint" role="status">{result === 'failed' ? 'Couldn’t reach the server. Try again in a minute.' : UPDATE_TEXT[result]}</p>
+      )}
     </section>
   );
 }
