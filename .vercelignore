@@ -1,0 +1,13 @@
+# Never upload these when deploying from this computer with the Vercel CLI.
+node_modules
+dist
+.env
+.env.*
+!.env.example
+data
+.impeccable
+.claude
+.netlify
+.vercel
+coverage
+*-failure.png

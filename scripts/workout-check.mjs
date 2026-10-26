@@ -16,7 +16,14 @@ const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 page.on('dialog', (d) => d.accept());
 const ex = (name) => page.locator('section.ex').filter({ has: page.getByRole('heading', { name, exact: true }) });
-async function skipRest() { const skip = page.getByRole('button', { name: 'Skip', exact: true }); if (await skip.isVisible()) await skip.click(); }
+// The rest timer appears just after a set is saved; wait for it before skipping, or it can
+// appear a moment later and cover the Finish button.
+async function skipRest() {
+  try {
+    await page.getByRole('timer', { name: 'Rest timer' }).waitFor({ timeout: 3000 });
+    await page.getByRole('button', { name: 'Skip', exact: true }).click();
+  } catch { /* no rest running */ }
+}
 
 try {
   // Setup

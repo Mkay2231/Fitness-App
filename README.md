@@ -233,13 +233,15 @@ There are no accounts, so there are no other users' records to protect against. 
 
 ## Deploy
 
-The app is a static site: `npm run build` produces `dist/` (about 0.8 MB). It needs no server, database or secrets, and either host below works. `public/_headers` sets caching and security headers on both.
+The app is a static site: `npm run build` produces `dist/` (about 0.8 MB). It needs no server, database or secrets.
 
-**Netlify** (settings in `netlify.toml`):
-1. On <https://app.netlify.com>, choose *Add new project → Import an existing project → GitHub*, and pick `Fitness-App`. Build command `npm run build`, publish directory `dist`; both are read from `netlify.toml`.
-2. Each push to `main` redeploys automatically. Pull requests get preview URLs.
+**Live now on Vercel:** <https://rep-ledger-ten.vercel.app> (project `rep-ledger`, Hobby plan). Settings and headers are in `vercel.json`.
 
-**Cloudflare Pages** (an alternative with more generous free limits for static sites): connect the repository, set the build command to `npm run build` and the output directory to `dist`, and add an environment variable `NODE_VERSION=24`.
+- **Automatic updates:** the project is connected to the GitHub repository, so every push to `main` deploys to production and other branches get preview URLs.
+- **Deploy from this computer:** `npx.cmd vercel deploy --prod` (use `npx.cmd`, because Windows blocks the `npx.ps1` script in PowerShell). `.vercelignore` keeps `.env.local`, `data/` and `node_modules` out of the upload.
+- **Check the live site:** set `APP_URL` to the live address (for example, in PowerShell, `$env:APP_URL = "https://rep-ledger-ten.vercel.app/"`), then run `npm run check:offline`, `check:audit`, `check:workout` and `check:profile`. `check:review` needs the dev server.
+
+**Other hosts** also work: `netlify.toml` and `public/_headers` for Netlify, and `_headers` plus `NODE_VERSION=24` for Cloudflare Pages. A Netlify site `rep-ledger-wmom` exists but never published; its free credits were used up.
 
 **After deploying**, open the site on your phone. On Android Chrome, use **Install app** (also in Settings). On iPhone, use Safari → Share → **Add to Home Screen**. Installing matters on iPhone: Safari can clear the storage of sites that aren't on the Home Screen after weeks without use.
 
@@ -250,7 +252,8 @@ What becomes public: the app's code and the built-in food and exercise data. You
 | Variable | Where | Required | Purpose |
 |---|---|---|---|
 | none | Deployed app | – | The app runs entirely in the browser and holds no secrets |
-| `NODE_VERSION` | Host build settings | Set in `netlify.toml`; add manually on Cloudflare | Node 24 for the build |
+| `NODE_VERSION` | Host build settings | Set in `netlify.toml`; add manually on Cloudflare; Vercel uses its default | Node version for the build |
+| `VERCEL_OIDC_TOKEN` | `.env.local` (written by `vercel link`; git-ignored, never uploaded) | No | Vercel CLI's short-lived token. Not used by the app; never commit it |
 | `FDC_API_KEY` | `.env.local` on your computer (git-ignored; template in `.env.example`) | Optional | Your free USDA key for `npm run foods:import`. Never set it on the host |
 | `APP_URL`, `BROWSER` | Your terminal | Optional | Point the browser checks at another URL, or use `chrome` instead of Edge |
 
@@ -258,8 +261,8 @@ What becomes public: the app's code and the built-in food and exercise data. You
 
 | Item | Cost now | Assumptions |
 |---|---|---|
-| Hosting (Netlify Free or Cloudflare Pages Free) | ₦0 | One user and a 0.8 MB static app. On Netlify Free, third-party guides report 300 credits a month and about 15 credits per production deploy. Netlify itself lists bandwidth at 20 credits per GB. Roughly 20 deploys a month would use the allowance, and Free sites pause instead of billing. Cloudflare Pages Free reportedly allows 500 builds a month and doesn't meter static traffic. Check both pricing pages before relying on these figures |
-| Web address | ₦0 | The free `*.netlify.app` or `*.pages.dev` address. A custom domain is optional, with yearly registrar pricing |
+| Hosting (Vercel Hobby) | ₦0 | One user, a 0.8 MB static app, no server functions. Hobby is free but for **personal, non-commercial** use only, so charging users would mean a paid plan (Pro has been about $20 per member a month; check Vercel's pricing page). The Netlify free credits on this account were used up, and the deploy there was skipped without a charge |
+| Web address | ₦0 | The free `rep-ledger-ten.vercel.app` address. A custom domain is optional, with yearly registrar pricing |
 | Database, accounts, sync | ₦0 | None used |
 | AI summaries | ₦0 | Off. Costs will be quoted before enabling |
 | Food data | ₦0 | USDA is public domain. FAO data is free for non-commercial use; a paid version needs FAO permission or another source |
@@ -268,7 +271,7 @@ What becomes public: the app's code and the built-in food and exercise data. You
 ## Known limitations
 
 - **One device:** no sync and no automatic backup. Clearing site data deletes everything, so export a backup regularly.
-- **Not yet on a real phone:** checks ran in headless Edge at 360–390 px. iPhone Safari behaviour, including install and storage, is untested.
+- **Not yet on a real phone:** checks ran in headless Edge at 360–390 px against both the local build and the live site. iPhone Safari behaviour, including install and storage, is untested.
 - **Timer limits:** the rest timer only counts while the app is open. Vibration works on Android, not on iPhone.
 - **No instructions or demonstrations:** no cited source has been chosen yet, so exercises show "unavailable" rather than unsourced tips.
 - **Food gaps:** there are no composed Nigerian dishes (egusi soup, moi moi) and no recipe builder yet, and the USDA extras aren't imported until a key is set.
@@ -276,12 +279,11 @@ What becomes public: the app's code and the built-in food and exercise data. You
 - **Fixed swap list:** limitation swaps cover the built-in exercises only and are not a substitute for a physiotherapist.
 - **Food preferences go by name:** a food you create named, say, "Mama's special" isn't recognised as beef.
 - **Units mid-workout:** numbers already typed into an unlogged set keep their unit if you switch units during a workout.
-- **One flaky run:** the workout browser check failed once and then passed on three reruns; the cause wasn't found.
 - **Dev-only advisories:** `npm audit` reports 2 moderate issues in `exceljs`. It's a development-only tool used to import the FAO table and isn't part of the app (`npm audit --omit=dev` finds 0).
 
 ## Roadmap
 
-1. Deploy (free) so the app installs and works offline on your phone.
+1. Install the live app on your phone and use it for a week; fix what real use turns up.
 2. Add your usual meals, and a recipe builder for home-cooked dishes (jollof, egusi soup, moi moi) from cited ingredients.
 3. Cited exercise instructions from a source you approve.
 4. Claude explanations for the weekly review, via a small server function. The API key stays on the server, and costs are confirmed before enabling.
