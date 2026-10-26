@@ -53,8 +53,11 @@ export default function SettingsScreen() {
   }
 
   return (
-    <>
-      <h1>More</h1>
+    <div className="page">
+      <header className="page-head">
+        <h1>Settings</h1>
+        <p className="meta">Program, weight jumps, targets and your data.</p>
+      </header>
       {msg && <div className="card soft" role="status">{msg}</div>}
       <InstallCard />
 
@@ -133,7 +136,7 @@ export default function SettingsScreen() {
           }}>Delete all data</button>
         </div>
       </section>
-    </>
+    </div>
   );
 }
 

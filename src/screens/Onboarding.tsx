@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { db, type Settings } from '../db';
 import { activateProgram, nowISO, today } from '../data';
 import { initialTargets, type Activity, type Sex } from '../rules/nutrition';
+import { Icon } from '../icons';
 import { Chips, Reasons } from '../ui';
 
 export const WEEKDAYS = [
@@ -50,8 +51,14 @@ export default function Onboarding() {
 
   return (
     <>
-      <h1>Set up</h1>
-      <p className="muted">These details give you starting calorie and protein estimates and a beginner program. You can change all of it later.</p>
+      <header className="page-head">
+        <div className="row" style={{ gap: 10, marginBottom: 16, fontWeight: 680 }}>
+          <span className="brand-mark" style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--accent)', color: '#fff', display: 'grid', placeItems: 'center' }}><Icon name="train" size="sm" /></span>
+          Rep Ledger
+        </div>
+        <h1>Set up</h1>
+        <p className="meta">These details give you starting calorie and protein estimates and a beginner program. You can change all of it later.</p>
+      </header>
 
       <div className="card">
         <div className="field">

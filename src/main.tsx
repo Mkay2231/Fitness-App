@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { HashRouter } from 'react-router-dom';
 import { registerSW } from 'virtual:pwa-register';
+import '@fontsource-variable/inter';
 import App from './App';
 import { requestPersistentStorage } from './db';
 import { syncBuiltIns } from './data';

@@ -1,9 +1,9 @@
 // Reads and writes that combine the database with the rules engine.
 
-import { db, type Exercise, type FoodEntry, type Program, type ProgramSlot, type SetLog, type Settings, type TargetVersion } from './db';
+import { db, type Exercise, type FoodEntry, type Program, type ProgramDay, type ProgramSlot, type SetLog, type Settings, type TargetVersion } from './db';
 import { addDays, toISODate, weekDates, type ISODate } from './rules/dates';
 import { FAT_SHARE, MIN_FAT_G_PER_KG, roundTo } from './rules/nutrition';
-import { suggestNext, type ExerciseSession, type Prescription } from './rules/progression';
+import { suggestNext, type ExerciseSession, type Prescription, type Suggestion } from './rules/progression';
 import { buildWeeklyReview, type FoodDaySummary } from './rules/review';
 import { setsByMuscle } from './rules/volume';
 import { EXERCISES } from './seed/exercises';
@@ -85,6 +85,28 @@ export function prescriptionFor(slot: ProgramSlot, exercise: Exercise, settings:
 export async function suggestionFor(slot: ProgramSlot, exercise: Exercise, settings: Settings, excludeSessionId?: number) {
   const history = await exerciseHistory(exercise.id, excludeSessionId);
   return { suggestion: suggestNext(prescriptionFor(slot, exercise, settings), history), last: history[0] };
+}
+
+export interface PlanRow {
+  slot: ProgramSlot;
+  ex: Exercise;
+  suggestion: Suggestion;
+  last?: ExerciseSession;
+}
+
+/** Each exercise of a program day with today's target and last performance. */
+export async function planFor(day: ProgramDay, settings: Settings, excludeSessionId?: number): Promise<PlanRow[]> {
+  const exercises = new Map((await db.exercises.toArray()).map((e) => [e.id, e]));
+  return Promise.all(day.slots.map(async (slot) => {
+    const ex = exercises.get(slot.exerciseId)!;
+    return { slot, ex, ...(await suggestionFor(slot, ex, settings, excludeSessionId)) };
+  }));
+}
+
+/** Rough session length: each set's work (~40 s) plus its rest, plus 5 min to warm up. */
+export function estimateMinutes(day: ProgramDay): number {
+  const sec = day.slots.reduce((s, sl) => s + sl.sets * (40 + sl.restSec), 0) + 300;
+  return Math.round(sec / 60 / 5) * 5;
 }
 
 // ---------- Nutrition ----------

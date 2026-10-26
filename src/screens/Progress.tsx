@@ -6,6 +6,7 @@ import { addDays, daysBetween } from '../rules/dates';
 import { fmtRate } from '../rules/nutrition';
 import { bestOneRepMax } from '../rules/progression';
 import { sevenDayAverage, weeklyRate } from '../rules/trend';
+import { Icon } from '../icons';
 import { Empty, fmt, fmtDate } from '../ui';
 
 const SITES = ['Waist (at navel)', 'Chest', 'Upper arm (flexed)', 'Thigh', 'Hips'];
@@ -30,19 +31,23 @@ export default function Progress() {
   const rate = weeklyRate(weights, d);
 
   return (
-    <>
-      <h1>Progress</h1>
+    <div className="page">
+      <header className="page-head">
+        <h1>Progress</h1>
+        <p className="meta">Body weight, measurements and lifts. Only what you have recorded.</p>
+      </header>
 
       <section className="card" aria-label="Body weight">
         <h2>Body weight</h2>
-        <div className="row">
-          <input type="date" aria-label="Date" value={wDate} max={d} onChange={(e) => setWDate(e.target.value)} />
-          <input inputMode="decimal" aria-label="Weight in kg" placeholder="kg" value={wKg} onChange={(e) => setWKg(e.target.value)} style={{ width: 100 }} />
-          <button className="primary" onClick={async () => {
-            const kg = +wKg.replace(',', '.');
-            if (kg >= 30 && kg <= 250 && wDate) { await db.weights.put({ date: wDate, kg }); setWKg(''); }
-          }}>Save</button>
-        </div>
+        <form className="form-grid" onSubmit={async (e) => {
+          e.preventDefault();
+          const kg = +wKg.replace(',', '.');
+          if (kg >= 30 && kg <= 250 && wDate) { await db.weights.put({ date: wDate, kg }); setWKg(''); }
+        }}>
+          <div><label htmlFor="w-date">Date</label><input id="w-date" type="date" value={wDate} max={d} onChange={(e) => setWDate(e.target.value)} /></div>
+          <div><label htmlFor="w-kg">Weight (kg)</label><input id="w-kg" inputMode="decimal" placeholder="e.g. 62.4" value={wKg} onChange={(e) => setWKg(e.target.value)} /></div>
+          <button type="submit">Save</button>
+        </form>
         {weights.length === 0 ? (
           <p className="muted small" style={{ marginTop: 8 }}>No weigh-ins yet. Daily weight moves up and down with water and food; the 7-day average and trend appear after a few entries.</p>
         ) : (
@@ -55,7 +60,7 @@ export default function Progress() {
             <details><summary className="small">All weigh-ins ({weights.length})</summary>
               <ul className="list">{[...weights].reverse().map((w) => (
                 <li key={w.date} className="row between"><span>{fmtDate(w.date)}</span><span className="num">{fmt(w.kg, 1)} kg</span>
-                  <button className="ghost danger small" onClick={() => db.weights.delete(w.date)} aria-label={`Delete ${w.date}`}>✕</button></li>
+                  <button className="ghost danger icon-btn" onClick={() => db.weights.delete(w.date)} aria-label={`Delete weigh-in for ${w.date}`}><Icon name="trash" size="sm" /></button></li>
               ))}</ul>
             </details>
           </>
@@ -65,14 +70,15 @@ export default function Progress() {
       <section className="card" aria-label="Measurements">
         <h2>Measurements</h2>
         <p className="muted small">Every 2–4 weeks, same time of day, tape snug but not tight. Stored only on this device.</p>
-        <div className="row">
-          <select aria-label="Site" value={site} onChange={(e) => setSite(e.target.value)}>{SITES.map((s) => <option key={s}>{s}</option>)}</select>
-          <input inputMode="decimal" aria-label="Centimetres" placeholder="cm" value={cm} onChange={(e) => setCm(e.target.value)} style={{ width: 90 }} />
-          <button className="primary" onClick={async () => {
-            const v = +cm.replace(',', '.');
-            if (v > 0 && v < 300) { await db.measurements.add({ date: d, site, cm: v }); setCm(''); }
-          }}>Add</button>
-        </div>
+        <form className="form-grid" onSubmit={async (e) => {
+          e.preventDefault();
+          const v = +cm.replace(',', '.');
+          if (v > 0 && v < 300) { await db.measurements.add({ date: d, site, cm: v }); setCm(''); }
+        }}>
+          <div><label htmlFor="m-site">Where</label><select id="m-site" value={site} onChange={(e) => setSite(e.target.value)}>{SITES.map((s) => <option key={s}>{s}</option>)}</select></div>
+          <div><label htmlFor="m-cm">Centimetres</label><input id="m-cm" inputMode="decimal" placeholder="e.g. 78.5" value={cm} onChange={(e) => setCm(e.target.value)} /></div>
+          <button type="submit">Add</button>
+        </form>
         {measurements.length === 0 ? <p className="muted small" style={{ marginTop: 8 }}>No measurements yet.</p> : (
           <ul className="list" style={{ marginTop: 8 }}>
             {SITES.filter((s) => measurements.some((m) => m.site === s)).map((s) => {
@@ -116,7 +122,7 @@ export default function Progress() {
           );
         })}
       </section>
-    </>
+    </div>
   );
 }
 

@@ -4,10 +4,14 @@ import { useSearchParams } from 'react-router-dom';
 import { db, type Food as FoodItem, type FoodSource, type MealSlot } from '../db';
 import { nowISO, targetsOn, today, totalsFor } from '../data';
 import { addDays } from '../rules/dates';
+import { Icon } from '../icons';
 import { Chips, Sheet, fmt, fmtDate } from '../ui';
 
-const SLOTS: { id: MealSlot; label: string }[] = [
-  { id: 'breakfast', label: 'Breakfast' }, { id: 'lunch', label: 'Lunch' }, { id: 'dinner', label: 'Dinner' }, { id: 'snack', label: 'Snacks' },
+const SLOTS: { id: MealSlot; label: string; idea: string }[] = [
+  { id: 'breakfast', label: 'Breakfast', idea: 'Oats with milk and groundnuts, or akara and pap' },
+  { id: 'lunch', label: 'Lunch', idea: 'Jollof rice with chicken, or beans and dodo' },
+  { id: 'dinner', label: 'Dinner', idea: 'Eba with egusi and beef, or yam and egg sauce' },
+  { id: 'snack', label: 'Snacks', idea: 'Boiled eggs, groundnuts, a banana' },
 ];
 
 const sourceLabel = (f: FoodItem) =>
@@ -54,14 +58,19 @@ export default function Food() {
   }
 
   return (
-    <>
-      <div className="row between">
-        <button className="ghost" aria-label="Previous day" onClick={() => go(addDays(date, -1))}>‹</button>
-        <h1 style={{ margin: 0, textAlign: 'center' }}>{date === today() ? 'Today' : fmtDate(date)}</h1>
-        <button className="ghost" aria-label="Next day" disabled={date >= today()} onClick={() => go(addDays(date, 1))}>›</button>
-      </div>
+    <div className="page">
+      <header className="page-head page-head-row">
+        <div>
+          <h1>Food</h1>
+          <p className="meta">{date === today() ? `Today, ${fmtDate(date, { day: 'numeric', month: 'long' })}` : fmtDate(date, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+        </div>
+        <div className="row" style={{ gap: 4 }}>
+          <button className="ghost icon-btn" aria-label="Previous day" onClick={() => go(addDays(date, -1))}><Icon name="back" /></button>
+          <button className="ghost icon-btn" aria-label="Next day" disabled={date >= today()} onClick={() => go(addDays(date, 1))}><Icon name="next" /></button>
+        </div>
+      </header>
 
-      <div className="card" style={{ marginTop: 12 }}>
+      <div className="card">
         <div className="row between">
           <span className={`badge ${status === 'complete' ? 'ok' : status === 'partial' ? 'warn' : ''}`}>
             {status === 'complete' ? 'Complete' : status === 'partial' ? 'In progress' : 'Not logged'}
@@ -69,7 +78,7 @@ export default function Food() {
           <span className="muted small">All values are estimates</span>
         </div>
         {status === 'not-logged' ? (
-          <p className="muted" style={{ marginTop: 8 }}>Nothing logged for this day. It won't count as 0 kcal; it's left out of averages.</p>
+          <p className="muted" style={{ marginTop: 8 }}>Nothing logged yet. An empty day is left out of your averages, not counted as 0 kcal.</p>
         ) : (
           <div className="kpis" style={{ marginTop: 8 }}>
             <Kpi label="kcal" value={totals.kcal} target={targets?.calories} />
@@ -100,6 +109,7 @@ export default function Food() {
               <h2 style={{ margin: 0 }}>{slot.label}</h2>
               <span className="muted small num">{list.length ? `${fmt(list.reduce((s, e) => s + macros(foods.get(e.foodId)!, e.grams).kcal, 0))} kcal` : ''}</span>
             </div>
+            {list.length === 0 && <p className="muted small" style={{ margin: '4px 0 0' }}>Nothing logged. Ideas: {slot.idea}.</p>}
             {list.length > 0 && (
               <ul className="list" style={{ marginTop: 6 }}>
                 {list.map((e) => {
@@ -112,22 +122,22 @@ export default function Food() {
                         <div className="muted small">{e.portionText} · {fmt(e.grams)} g</div>
                       </div>
                       <div className="num small" style={{ textAlign: 'right' }}>{m && <>{fmt(m.kcal)} kcal<br />{fmt(m.proteinG)} g P</>}</div>
-                      <button className="ghost danger" aria-label={`Remove ${f?.name}`} onClick={() => db.foodEntries.delete(e.id!)}>✕</button>
+                      <button className="ghost danger icon-btn" aria-label={`Remove ${f?.name}`} onClick={() => db.foodEntries.delete(e.id!)}><Icon name="trash" size="sm" /></button>
                     </li>
                   );
                 })}
               </ul>
             )}
-            <div className="row" style={{ marginTop: 8 }}>
-              <button className="grow" onClick={() => setAdding(slot.id)}>+ Add food</button>
-              {list.length > 1 && <button className="ghost small" onClick={() => saveMeal(slot.id)}>Save as meal</button>}
+            <div className="row" style={{ marginTop: 12 }}>
+              <button className="grow" onClick={() => setAdding(slot.id)}><Icon name="plus" size="sm" />Add to {slot.label.toLowerCase()}</button>
+              {list.length > 1 && <button className="ghost" onClick={() => saveMeal(slot.id)}>Save as meal</button>}
             </div>
           </section>
         );
       })}
 
       {adding && <AddFood date={date} slot={adding} onClose={() => setAdding(null)} />}
-    </>
+    </div>
   );
 }
 

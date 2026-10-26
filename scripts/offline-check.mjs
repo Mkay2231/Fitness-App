@@ -36,15 +36,16 @@ try {
   step('setup saved offline and workout started');
 
   await page.waitForURL(/#\/workout\//);
-  await page.getByRole('textbox', { name: 'Weight', exact: true }).first().fill('40');
+  await page.getByRole('textbox', { name: /Set 1 weight/ }).first().fill('40');
   await page.getByRole('button', { name: 'Log set 1' }).first().click();
-  await page.getByText('40 kg × 8').first().waitFor({ timeout: 5_000 });
+  const logged = page.getByRole('button', { name: /Edit set 1: 40 by 8/ }).first();
+  await logged.waitFor({ timeout: 5_000 });
   step('set logged offline');
 
   await page.reload();
-  await page.getByText('40 kg × 8').first().waitFor({ timeout: 10_000 });
-  await page.getByText('Offline. Everything you log is saved on this phone.').waitFor({ timeout: 5_000 });
-  step('logged set still there after an offline reload, offline banner shown');
+  await logged.waitFor({ timeout: 10_000 });
+  await page.getByText('Offline · saved on phone').waitFor({ timeout: 5_000 });
+  step('logged set still there after an offline reload, offline status shown');
 
   console.log('\nOFFLINE CHECK PASSED');
 } catch (e) {

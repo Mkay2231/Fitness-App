@@ -67,8 +67,9 @@ export function buildWeeklyReview(i: ReviewInput): WeeklyReview {
   const training = {
     planned,
     completed: planned.filter((d) => done.has(d)),
-    missed: planned.filter((d) => d <= endDate && !done.has(d)),
-    upcoming: planned.filter((d) => d > endDate),
+    // Today isn't "missed" until it's over.
+    missed: planned.filter((d) => d <= endDate && d < i.asOf && !done.has(d)),
+    upcoming: planned.filter((d) => d > endDate || (d === i.asOf && !done.has(d))),
     extra: days.filter((d) => done.has(d) && !planned.includes(d)),
   };
 

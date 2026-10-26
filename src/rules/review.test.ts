@@ -56,6 +56,12 @@ describe('weekly review', () => {
     expect(r.training.extra).toEqual(['2026-10-20']);
   });
 
+  it('does not count today as missed before it is over', () => {
+    const r = buildWeeklyReview({ ...empty, asOf: '2026-10-21' });
+    expect(r.training.missed).toEqual(['2026-10-19']);
+    expect(r.training.upcoming).toEqual(['2026-10-21', '2026-10-23']);
+  });
+
   it('averages only complete food days', () => {
     const foodDays: FoodDaySummary[] = [
       { date: '2026-10-19', status: 'complete', kcal: 2600, proteinG: 100 },

@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
+import { Icon } from './icons';
 
 export function Stepper({ label, value, step, min = 0, onChange, suffix }: {
   label: string; value: number | null; step: number; min?: number; onChange: (v: number | null) => void; suffix?: string;
@@ -50,7 +51,7 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
       <div className="sheet" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
         <div className="row between" style={{ marginBottom: 12 }}>
           <h2 style={{ margin: 0 }}>{title}</h2>
-          <button type="button" className="ghost" onClick={onClose} aria-label="Close">✕</button>
+          <button type="button" className="ghost icon-btn" onClick={onClose} aria-label="Close"><Icon name="close" /></button>
         </div>
         {children}
       </div>

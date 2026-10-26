@@ -1,46 +1,116 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { db, type Exercise, type ProgramSlot, type SetLog } from '../db';
-import { nowISO, suggestionFor } from '../data';
-import type { ExerciseSession, Suggestion } from '../rules/progression';
-import { Chips, Reasons, Stepper, fmt } from '../ui';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { db, type ProgramSlot, type SetLog } from '../db';
+import { nowISO, planFor, type PlanRow } from '../data';
+import { Icon } from '../icons';
+import { useOnline } from '../install';
+import { kg, lastDate, lastText, restText, targetText } from '../plan';
+import type { Suggestion } from '../rules/progression';
+import { Reasons } from '../ui';
 
-interface Draft { weightKg: number | null; reps: number | null; rir: number | null }
+// ---------- Small persistence helpers (unfinished input and rest timer survive a reload) ----------
 
-const RIR_OPTIONS = [
-  { value: 0, label: '0' }, { value: 1, label: '1' }, { value: 2, label: '2' }, { value: 3, label: '3' }, { value: 4, label: '4+' },
-];
+const store = {
+  get<T>(key: string, fallback: T): T {
+    try { const v = localStorage.getItem(key); return v ? (JSON.parse(v) as T) : fallback; } catch { return fallback; }
+  },
+  set(key: string, value: unknown) {
+    try { if (value === null) localStorage.removeItem(key); else localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage unavailable */ }
+  },
+};
 
-function useRestTimer() {
-  const [endsAt, setEndsAt] = useState<number | null>(null);
-  const [, tick] = useState(0);
+interface Draft { weight: string; reps: string; rir: number | null }
+
+const RIR_OPTIONS = [0, 1, 2, 3, 4];
+
+function useNow(ms: number, active: boolean) {
+  const [now, setNow] = useState(Date.now());
   useEffect(() => {
-    if (endsAt === null) return;
-    const t = setInterval(() => {
-      tick((n) => n + 1);
-      if (Date.now() >= endsAt) {
-        navigator.vibrate?.([200, 100, 200]);
-        setEndsAt(null);
-      }
-    }, 250);
+    if (!active) return;
+    const t = setInterval(() => setNow(Date.now()), ms);
     return () => clearInterval(t);
-  }, [endsAt]);
-  const left = endsAt === null ? 0 : Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
+  }, [ms, active]);
+  return now;
+}
+
+function useRestTimer(sessionId: number) {
+  const key = `rl-rest-${sessionId}`;
+  const [rest, setRest] = useState<{ endsAt: number; total: number } | null>(() => store.get(key, null));
+  const now = useNow(250, rest !== null);
+  useEffect(() => store.set(key, rest), [key, rest]);
+  useEffect(() => {
+    if (rest && now >= rest.endsAt) {
+      navigator.vibrate?.([200, 100, 200]);
+      setRest(null);
+    }
+  }, [now, rest]);
+  const left = rest ? Math.max(0, Math.ceil((rest.endsAt - now) / 1000)) : 0;
   return {
     left,
-    running: endsAt !== null,
-    start: (sec: number) => setEndsAt(Date.now() + sec * 1000),
-    add: (sec: number) => setEndsAt((e) => (e === null ? null : e + sec * 1000)),
-    stop: () => setEndsAt(null),
+    total: rest?.total ?? 0,
+    running: rest !== null,
+    start: (sec: number) => setRest({ endsAt: Date.now() + sec * 1000, total: sec }),
+    add: (sec: number) => setRest((r) => (r ? { endsAt: Math.max(Date.now(), r.endsAt + sec * 1000), total: Math.max(1, r.total + sec) } : r)),
+    stop: () => setRest(null),
   };
 }
+
+type SaveState = 'saved' | 'saving' | 'error';
+
+function useSaver() {
+  const [state, setState] = useState<SaveState>('saved');
+  const [message, setMessage] = useState('');
+  async function run(fn: () => Promise<unknown>, failure: string): Promise<boolean> {
+    setState('saving');
+    try {
+      await fn();
+      setState('saved');
+      setMessage('');
+      return true;
+    } catch {
+      setState('error');
+      setMessage(failure);
+      return false;
+    }
+  }
+  return { state, message, run };
+}
+
+// ---------- Validation ----------
+
+function parseSet(d: Draft, bodyweight: boolean): { weightKg: number | null; reps: number; error?: string } {
+  const reps = Number(d.reps);
+  const weight = d.weight.trim() === '' ? NaN : Number(d.weight.replace(',', '.'));
+  if (!bodyweight && !(weight >= 0 && weight <= 500)) return { weightKg: null, reps, error: 'Enter the weight in kg.' };
+  if (!Number.isInteger(reps) || reps < 1 || reps > 100) return { weightKg: null, reps, error: 'Enter the reps you did (1–100).' };
+  return { weightKg: bodyweight ? null : weight, reps };
+}
+
+const draftFrom = (s: Pick<SetLog, 'weightKg' | 'reps' | 'rir'>): Draft => ({ weight: s.weightKg === null ? '' : String(s.weightKg), reps: String(s.reps), rir: s.rir });
+
+function defaultDraft(slot: ProgramSlot, s: Suggestion, logged: SetLog[]): Draft {
+  const prev = logged.at(-1);
+  if (prev) return draftFrom(prev);
+  return { weight: s.weightKg === null ? '' : String(s.weightKg), reps: String(s.targetReps), rir: slot.targetRir };
+}
+
+// ---------- Screen ----------
+
+interface Row extends PlanRow { logged: SetLog[]; increment: number }
 
 export default function Workout() {
   const id = Number(useParams().id);
   const navigate = useNavigate();
-  const timer = useRestTimer();
-  const [drafts, setDrafts] = useState<Record<string, Draft>>({});
+  const online = useOnline();
+  const timer = useRestTimer(id);
+  const saver = useSaver();
+  const draftKey = `rl-draft-${id}`;
+  const [drafts, setDrafts] = useState<Record<string, Draft>>(() => store.get(draftKey, {}));
+  const [extra, setExtra] = useState<Record<string, boolean>>({});
+  const [justDone, setJustDone] = useState<number | null>(null);
+  const [announce, setAnnounce] = useState('');
+  useEffect(() => store.set(draftKey, Object.keys(drafts).length ? drafts : null), [draftKey, drafts]);
 
   const data = useLiveQuery(async () => {
     const session = await db.sessions.get(id);
@@ -49,156 +119,359 @@ export default function Workout() {
     const program = await db.programs.get(session.programId);
     const day = program?.days.find((d) => d.id === session.dayId);
     const sets = await db.sets.where('sessionId').equals(id).sortBy('setIndex');
-    const exercises = new Map((await db.exercises.toArray()).map((e) => [e.id, e]));
-    const items = await Promise.all((day?.slots ?? []).map(async (slot) => {
-      const ex = exercises.get(slot.exerciseId)!;
-      const { suggestion, last } = await suggestionFor(slot, ex, settings, id);
-      return { slot, ex, suggestion, last, logged: sets.filter((s) => s.exerciseId === ex.id), increment: ex.equipment === 'bodyweight' ? 0 : settings.increments[ex.equipment] };
+    const plan = day ? await planFor(day, settings, id) : [];
+    const rows: Row[] = plan.map((r) => ({
+      ...r,
+      logged: sets.filter((s) => s.exerciseId === r.ex.id),
+      increment: r.ex.equipment === 'bodyweight' ? 0 : settings.increments[r.ex.equipment],
     }));
-    return { session, day, items, total: sets.length };
+    return { session, day, rows, total: sets.length };
   }, [id]);
 
-  if (!data) return null;
-  if (!data.session) return <p>Workout not found.</p>;
-  const { session, day, items, total } = data;
-  const finished = session.finishedAt !== null;
+  const finished = data?.session?.finishedAt != null;
+  const now = useNow(1000, !!data?.session && !finished);
 
-  async function logSet(slot: ProgramSlot, ex: Exercise, logged: SetLog[], d: Draft) {
-    if (d.reps === null || d.reps <= 0) return;
-    await db.sets.add({
-      sessionId: id, exerciseId: ex.id, date: session!.date, setIndex: logged.length,
-      weightKg: ex.equipment === 'bodyweight' ? null : d.weightKg, reps: d.reps, rir: d.rir, loggedAt: nowISO(),
-    });
-    setDrafts(({ [ex.id]: _, ...rest }) => rest);
-    timer.start(slot.restSec);
+  if (!data) return null;
+  if (!data.session) {
+    return (
+      <div className="page">
+        <div className="panel soft"><h2>Workout not found</h2><p className="muted">It may have been discarded.</p><Link className="btn" to="/">Back to Today</Link></div>
+      </div>
+    );
+  }
+  const { session, day, rows, total } = data;
+  const planned = rows.reduce((n, r) => n + r.slot.sets, 0);
+  const elapsedMs = (finished ? Date.parse(session.finishedAt!) : now) - Date.parse(session.startedAt);
+  const elapsed = restText(Math.max(0, Math.floor(elapsedMs / 1000)));
+  const status: 'saved' | 'saving' | 'error' | 'offline' = saver.state === 'error' ? 'error' : saver.state === 'saving' ? 'saving' : !online ? 'offline' : 'saved';
+  const statusText = { saved: 'Saved', saving: 'Saving…', error: 'Not saved', offline: 'Offline · saved on phone' }[status];
+
+  async function complete(row: Row, d: Draft): Promise<string | null> {
+    const parsed = parseSet(d, row.ex.equipment === 'bodyweight');
+    if (parsed.error) return parsed.error;
+    let newId = 0;
+    const ok = await saver.run(async () => {
+      newId = (await db.sets.add({
+        sessionId: id, exerciseId: row.ex.id, date: session!.date, setIndex: row.logged.length,
+        weightKg: parsed.weightKg, reps: parsed.reps, rir: d.rir, loggedAt: nowISO(),
+      })) as number;
+    }, `Set ${row.logged.length + 1} of ${row.ex.name} wasn't saved. Your numbers are still here; try again.`);
+    if (!ok) return saver.message || 'Not saved. Try again.';
+    setDrafts(({ [row.ex.id]: _, ...rest }) => rest);
+    setExtra((e) => ({ ...e, [row.ex.id]: false }));
+    setJustDone(newId);
+    timer.start(row.slot.restSec);
+    setAnnounce(`Set ${row.logged.length + 1} of ${row.ex.name} saved. Rest ${restText(row.slot.restSec)}.`);
+    return null;
+  }
+
+  async function update(row: Row, set: SetLog, d: Draft): Promise<string | null> {
+    const parsed = parseSet(d, row.ex.equipment === 'bodyweight');
+    if (parsed.error) return parsed.error;
+    const ok = await saver.run(() => db.sets.update(set.id!, { weightKg: parsed.weightKg, reps: parsed.reps, rir: d.rir }), 'That change wasn\'t saved. Try again.');
+    if (ok) setAnnounce(`Set ${set.setIndex + 1} of ${row.ex.name} updated.`);
+    return ok ? null : 'Not saved. Try again.';
+  }
+
+  async function remove(row: Row, set: SetLog) {
+    await saver.run(async () => {
+      await db.transaction('rw', db.sets, async () => {
+        await db.sets.delete(set.id!);
+        // Keep set numbers continuous after a deletion.
+        const rest = row.logged.filter((s) => s.id !== set.id);
+        await Promise.all(rest.map((s, i) => (s.setIndex === i ? null : db.sets.update(s.id!, { setIndex: i }))));
+      });
+    }, 'The set wasn\'t deleted. Try again.');
+    setAnnounce(`Set ${set.setIndex + 1} of ${row.ex.name} deleted.`);
   }
 
   async function finish() {
     if (total === 0) {
-      if (!confirm('No sets logged. Discard this workout?')) return;
+      if (!confirm('No sets logged yet. Discard this workout?')) return;
       await db.sessions.delete(id);
+      store.set(draftKey, null);
+      timer.stop();
       navigate('/');
       return;
     }
-    const remaining = items.reduce((n, it) => n + Math.max(0, it.slot.sets - it.logged.length), 0);
-    if (remaining > 0 && !confirm(`${remaining} planned set(s) not logged. Finish anyway?`)) return;
-    await db.sessions.update(id, { finishedAt: nowISO() });
+    const remaining = planned - rows.reduce((n, r) => n + Math.min(r.logged.length, r.slot.sets), 0);
+    if (remaining > 0 && !confirm(`${remaining} planned set${remaining === 1 ? '' : 's'} not logged. Finish anyway? Unlogged sets don't count toward progression.`)) return;
+    const ok = await saver.run(() => db.sessions.update(id, { finishedAt: nowISO() }), 'The workout wasn\'t marked finished. Try again.');
+    if (!ok) return;
+    store.set(draftKey, null);
     timer.stop();
     navigate('/');
   }
 
   return (
-    <>
-      <div className="row between">
-        <h1>{day?.name ?? 'Workout'}</h1>
-        {finished && <span className="badge ok">Finished</span>}
-      </div>
-      <details className="card soft">
-        <summary>How to rate effort (RIR)</summary>
-        <p className="small">RIR = <strong>reps in reserve</strong>: after a set, how many more clean reps could you have done? 0 means you couldn't do another. Aim for about 2. It takes a few weeks to judge well, so guess honestly.</p>
-      </details>
+    <div className="page wide">
+      <header className="wk-header">
+        <div className="wk-header-row">
+          <Link to="/" className="btn ghost icon-btn" aria-label="Back to Today"><Icon name="back" /></Link>
+          <div className="wk-title">
+            <h1>{day?.name ?? 'Workout'}</h1>
+            <div className="meta"><span aria-label={`Elapsed ${elapsed}`}>{elapsed}</span> · {total}/{planned} sets{finished ? ' · finished' : ''}</div>
+          </div>
+          <span className="save-status" data-state={status} role="status"><span className="dot" aria-hidden="true" />{statusText}</span>
+        </div>
+        <div className="wk-progress" aria-hidden="true"><span style={{ transform: `scaleX(${planned ? Math.min(1, total / planned) : 0})` }} /></div>
+      </header>
 
-      {items.map(({ slot, ex, suggestion, last, logged, increment }) => (
-        <ExerciseCard
-          key={ex.id}
-          slot={slot} ex={ex} suggestion={suggestion} last={last} logged={logged} increment={increment}
-          draft={drafts[ex.id] ?? defaultDraft(slot, suggestion, logged)}
-          setDraft={(d) => setDrafts((cur) => ({ ...cur, [ex.id]: d }))}
-          onLog={(d) => logSet(slot, ex, logged, d)}
-          disabled={finished}
+      {saver.state === 'error' && (
+        <div className="offline" role="alert" style={{ background: 'var(--danger-soft)', color: 'var(--danger)' }}><Icon name="alert" size="sm" />{saver.message}</div>
+      )}
+
+      {rows.map((row) => (
+        <ExerciseBlock
+          key={row.ex.id}
+          row={row}
+          finished={finished}
+          draft={drafts[row.ex.id] ?? defaultDraft(row.slot, row.suggestion, row.logged)}
+          setDraft={(d) => setDrafts((cur) => ({ ...cur, [row.ex.id]: d }))}
+          extraOpen={!!extra[row.ex.id]}
+          openExtra={() => setExtra((e) => ({ ...e, [row.ex.id]: true }))}
+          justDone={justDone}
+          onComplete={(d) => complete(row, d)}
+          onUpdate={(s, d) => update(row, s, d)}
+          onDelete={(s) => remove(row, s)}
         />
       ))}
 
-      {!finished && <button className="primary block" onClick={finish}>Finish workout</button>}
-      {/* Keeps the last button clear of the floating rest timer. */}
-      <div style={{ height: 80 }} aria-hidden="true" />
+      <p className="visually-hidden" aria-live="polite">{announce}</p>
 
-      {timer.running && (
-        <div className="timer" role="timer" aria-live="off">
-          <span className="small">Rest</span>
-          <span className="time">{Math.floor(timer.left / 60)}:{String(timer.left % 60).padStart(2, '0')}</span>
-          <button onClick={() => timer.add(30)}>+30s</button>
-          <button onClick={timer.stop}>Skip</button>
+      <div className="dock">
+        <div className="dock-inner">
+          {finished ? (
+            <div className="row between">
+              <span className="muted">Finished · {total} sets · {elapsed}</span>
+              <Link className="btn primary" to="/">Back to Today</Link>
+            </div>
+          ) : timer.running ? (
+            <div className="timer" role="timer" aria-label="Rest timer">
+              <div>
+                <div className="t-label">Rest</div>
+                <div className="t-time" aria-live="off">{restText(timer.left)}</div>
+              </div>
+              <div className="t-actions">
+                <button onClick={() => timer.add(30)} aria-label="Add 30 seconds">+30s</button>
+                <button onClick={timer.stop}>Skip</button>
+              </div>
+              <div className="bar" aria-hidden="true"><span className="scale" style={{ transform: `scaleX(${timer.total ? timer.left / timer.total : 0})`, transitionTimingFunction: 'linear', transitionDuration: '250ms' }} /></div>
+            </div>
+          ) : (
+            <button className="primary lg block" onClick={finish}>{total === 0 ? 'Discard or finish' : 'Finish workout'}</button>
+          )}
         </div>
-      )}
+      </div>
+    </div>
+  );
+}
+
+// ---------- One exercise ----------
+
+function ExerciseBlock({ row, finished, draft, setDraft, extraOpen, openExtra, justDone, onComplete, onUpdate, onDelete }: {
+  row: Row; finished: boolean; draft: Draft; setDraft: (d: Draft) => void;
+  extraOpen: boolean; openExtra: () => void; justDone: number | null;
+  onComplete: (d: Draft) => Promise<string | null>;
+  onUpdate: (s: SetLog, d: Draft) => Promise<string | null>;
+  onDelete: (s: SetLog) => void;
+}) {
+  const { slot, ex, suggestion, last, logged } = row;
+  const bodyweight = ex.equipment === 'bodyweight';
+  const unit = ex.perHand ? 'kg each' : 'kg';
+  const done = logged.length >= slot.sets;
+  const lastWeight = last?.sets[0]?.weightKg ?? null;
+  const showActive = !finished && (!done || extraOpen);
+  const rowCount = Math.max(slot.sets, logged.length + (showActive && done ? 1 : 0));
+  const offerLastWeight = (suggestion.kind === 'increase' || suggestion.kind === 'reduce') && lastWeight !== null && logged.length === 0 && !finished && draft.weight !== String(lastWeight);
+
+  return (
+    <section className={`ex${done ? ' is-complete' : ''}`} aria-labelledby={`ex-${ex.id}`}>
+      <div className="ex-head">
+        <div className="ex-head-row">
+          <div>
+            <h2 id={`ex-${ex.id}`}>{ex.name}</h2>
+            <p className="ex-rx">{slot.sets} sets · {slot.repMin}–{slot.repMax} reps · rest {restText(slot.restSec)} · stop ~{slot.targetRir} reps short</p>
+          </div>
+          <span className={`tag${done ? ' ok' : ''}`}>{done && <Icon name="check" size="sm" />}{logged.length}/{slot.sets}</span>
+        </div>
+      </div>
+
+      <div className="ex-compare">
+        <div className="target">
+          <div className="l">Today's target</div>
+          <div className="v">{targetText(suggestion)}</div>
+          <div className="sub">{suggestion.kind === 'first-time' ? `${slot.repMin}–${slot.repMax} reps, ~${slot.targetRir} left in reserve` : ex.perHand ? 'per dumbbell' : ' '}</div>
+        </div>
+        <div>
+          <div className="l">Last time</div>
+          <div className="v">{lastText(last)}</div>
+          <div className="sub">{last ? lastDate(last) : 'Log this session to start your history'}</div>
+        </div>
+      </div>
+
+      <div className="ex-actions">
+        <details className="ex-why" style={{ padding: '0 8px' }}>
+          <summary>Why this target</summary>
+          <Reasons items={suggestion.reasons} />
+        </details>
+        <details className="ex-why" style={{ padding: '0 8px' }}>
+          <summary>How to do it</summary>
+          <Reasons items={ex.cues} />
+        </details>
+        {offerLastWeight && (
+          <button className="ghost" onClick={() => setDraft({ ...draft, weight: String(lastWeight) })}>Use {kg(lastWeight)} kg instead</button>
+        )}
+      </div>
+
+      <div className="sets" role="table" aria-label={`${ex.name} sets`}>
+        <div className="sets-head" role="row">
+          <span role="columnheader" style={{ textAlign: 'center' }}>Set</span>
+          <span role="columnheader">Previous</span>
+          <span role="columnheader">{bodyweight ? 'Load' : unit}</span>
+          <span role="columnheader">Reps</span>
+          <span role="columnheader"><span className="visually-hidden">Done</span></span>
+        </div>
+        {Array.from({ length: rowCount }, (_, i) => {
+          const set = logged[i];
+          const prev = last?.sets[i];
+          const prevText = prev ? `${kg(prev.weightKg)} × ${prev.reps}` : '—';
+          if (set) return <DoneSet key={set.id} index={i} set={set} prevText={prevText} bodyweight={bodyweight} unit={unit} perHand={!!ex.perHand} justDone={justDone === set.id} onUpdate={onUpdate} onDelete={onDelete} />;
+          if (i === logged.length && showActive) {
+            return <ActiveSet key={`active-${i}`} index={i} prevText={prevText} bodyweight={bodyweight} unit={unit} exName={ex.name} draft={draft} setDraft={setDraft} onComplete={onComplete} />;
+          }
+          return (
+            <div key={`up-${i}`} className="set is-upcoming" role="row">
+              <span className="set-no" role="cell">{i + 1}</span>
+              <span className="set-prev" role="cell">{prevText}</span>
+              <span className="set-value" role="cell">{finished ? '–' : bodyweight ? 'BW' : draft.weight || '–'}</span>
+              <span className="set-value" role="cell">{finished ? '–' : draft.reps || suggestion.targetReps}</span>
+              <span role="cell" />
+            </div>
+          );
+        })}
+        {!finished && done && !extraOpen && (
+          <button className="ghost add-set" onClick={openExtra}><Icon name="plus" size="sm" />Add a set</button>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function RirPicker({ value, onChange, idPrefix }: { value: number | null; onChange: (v: number) => void; idPrefix: string }) {
+  return (
+    <>
+      <span className="rir-label" id={`${idPrefix}-rir`}>Reps left in reserve: how many more could you have done?</span>
+      <div className="rir" role="group" aria-labelledby={`${idPrefix}-rir`}>
+        {RIR_OPTIONS.map((v) => (
+          <button key={v} type="button" aria-pressed={value === v} onClick={() => onChange(v)}>{v === 4 ? '4+' : v}</button>
+        ))}
+      </div>
     </>
   );
 }
 
-function defaultDraft(slot: ProgramSlot, s: Suggestion, logged: SetLog[]): Draft {
-  const prev = logged.at(-1);
-  if (prev) return { weightKg: prev.weightKg, reps: prev.reps, rir: prev.rir ?? slot.targetRir };
-  return { weightKg: s.weightKg, reps: s.targetReps, rir: slot.targetRir };
-}
-
-function ExerciseCard({ slot, ex, suggestion, last, logged, increment, draft, setDraft, onLog, disabled }: {
-  slot: ProgramSlot; ex: Exercise; suggestion: Suggestion; last?: ExerciseSession; logged: SetLog[]; increment: number;
-  draft: Draft; setDraft: (d: Draft) => void; onLog: (d: Draft) => void; disabled: boolean;
+function ActiveSet({ index, prevText, bodyweight, unit, exName, draft, setDraft, onComplete }: {
+  index: number; prevText: string; bodyweight: boolean; unit: string; exName: string;
+  draft: Draft; setDraft: (d: Draft) => void; onComplete: (d: Draft) => Promise<string | null>;
 }) {
-  const bodyweight = ex.equipment === 'bodyweight';
-  const lastWeight = last?.sets[0]?.weightKg ?? null;
-  const done = logged.length >= slot.sets;
-  const unit = ex.perHand ? 'kg per hand' : 'kg';
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const idp = `${exName.replace(/\W+/g, '-')}-${index}`;
+  const ready = draft.reps.trim() !== '' && (bodyweight || draft.weight.trim() !== '');
+
+  async function submit(e?: React.FormEvent) {
+    e?.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    const err = await onComplete(draft);
+    setBusy(false);
+    setError(err ?? '');
+  }
 
   return (
-    <section className="card" aria-label={ex.name}>
-      <div className="row between">
-        <h2 style={{ margin: 0 }}>{ex.name}</h2>
-        <span className={`badge ${done ? 'ok' : ''}`}>{logged.length}/{slot.sets}</span>
-      </div>
-      <p className="muted small" style={{ marginTop: 2 }}>
-        {slot.sets} sets × {slot.repMin}–{slot.repMax} reps · ~{slot.targetRir} RIR · rest {Math.round((slot.restSec / 60) * 2) / 2} min
-      </p>
-
-      <div className="card soft" style={{ padding: 12, marginTop: 8 }}>
-        <div style={{ fontWeight: 600 }}>
-          {suggestion.kind === 'first-time' ? 'First time: find your starting weight'
-            : `Target: ${suggestion.weightKg !== null ? `${fmt(suggestion.weightKg, 2)} ${unit}` : 'bodyweight'} × ${suggestion.targetReps}`}
-        </div>
-        {last && <div className="muted small">Last time ({last.date}): {last.sets.map((s) => `${s.weightKg ?? 'BW'}×${s.reps}`).join(', ')}</div>}
-        <details><summary className="small">Why</summary><Reasons items={suggestion.reasons} /></details>
-        {(suggestion.kind === 'increase' || suggestion.kind === 'reduce') && lastWeight !== null && logged.length === 0 && draft.weightKg !== lastWeight && !disabled && (
-          <button className="small" onClick={() => setDraft({ ...draft, weightKg: lastWeight })}>Keep last weight ({fmt(lastWeight, 2)} kg) instead</button>
+    <form className="set is-active" role="row" onSubmit={submit} noValidate>
+      <span className="set-no" role="cell">{index + 1}</span>
+      <span className="set-prev" role="cell">{prevText}</span>
+      <span role="cell">
+        {bodyweight ? <span className="set-value">BW</span> : (
+          <input
+            className="num-input" inputMode="decimal" enterKeyHint="next" autoComplete="off"
+            aria-label={`Set ${index + 1} weight, ${unit}`} aria-invalid={error.startsWith('Enter the weight')}
+            value={draft.weight} placeholder="kg"
+            onChange={(e) => setDraft({ ...draft, weight: e.target.value.replace(/[^\d.,]/g, '') })}
+          />
         )}
-      </div>
+      </span>
+      <span role="cell">
+        <input
+          className="num-input" inputMode="numeric" pattern="[0-9]*" enterKeyHint="done" autoComplete="off"
+          aria-label={`Set ${index + 1} reps`} aria-invalid={error.startsWith('Enter the reps')}
+          value={draft.reps} placeholder="reps"
+          onChange={(e) => setDraft({ ...draft, reps: e.target.value.replace(/\D/g, '') })}
+        />
+      </span>
+      <span role="cell">
+        <button type="submit" className={`check-btn${ready ? ' ready' : ''}`} aria-label={`Log set ${index + 1}`} disabled={busy}><Icon name="check" /></button>
+      </span>
+      <div className="set-tools"><RirPicker idPrefix={idp} value={draft.rir} onChange={(v) => setDraft({ ...draft, rir: v })} /></div>
+      {error && <p className="set-error" role="alert">{error}</p>}
+    </form>
+  );
+}
 
-      <details>
-        <summary className="small">Form cues</summary>
-        <ul className="reasons">{ex.cues.map((c) => <li key={c}>{c}</li>)}</ul>
-      </details>
+function DoneSet({ index, set, prevText, bodyweight, unit, perHand, justDone, onUpdate, onDelete }: {
+  index: number; set: SetLog; prevText: string; bodyweight: boolean; unit: string; perHand: boolean; justDone: boolean;
+  onUpdate: (s: SetLog, d: Draft) => Promise<string | null>; onDelete: (s: SetLog) => void;
+}) {
+  const [editing, setEditing] = useState<Draft | null>(null);
+  const [error, setError] = useState('');
+  const firstInput = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (editing) firstInput.current?.focus(); }, [editing !== null]); // eslint-disable-line react-hooks/exhaustive-deps
 
-      {logged.map((s, i) => (
-        <div key={s.id} className="set-row done">
-          <span className="set-idx">{i + 1}</span>
-          <span className="num" style={{ alignSelf: 'center', fontWeight: 600 }}>
-            {s.weightKg !== null ? `${fmt(s.weightKg, 2)} kg` : 'BW'} × {s.reps}
-            <span className="muted small"> · RIR {s.rir === 4 ? '4+' : s.rir ?? '–'}</span>
-          </span>
-          {!disabled && <button className="ghost danger small" style={{ justifySelf: 'end' }} onClick={() => db.sets.delete(s.id!)} aria-label={`Delete set ${i + 1}`}>Delete</button>}
-        </div>
-      ))}
-
-      {!disabled && (
-        <div className="set-row">
-          <span className="set-idx">{logged.length + 1}</span>
-          {bodyweight ? <span className="muted small" style={{ alignSelf: 'center' }}>Bodyweight</span> : (
-            <Stepper label="Weight" suffix={unit} value={draft.weightKg} step={increment || 1} onChange={(v) => setDraft({ ...draft, weightKg: v })} />
+  if (editing) {
+    return (
+      <form className="set is-active" role="row" noValidate onSubmit={async (e) => {
+        e.preventDefault();
+        const err = await onUpdate(set, editing);
+        if (err) setError(err); else { setEditing(null); setError(''); }
+      }}>
+        <span className="set-no" role="cell">{index + 1}</span>
+        <span className="set-prev" role="cell">{prevText}</span>
+        <span role="cell">
+          {bodyweight ? <span className="set-value">BW</span> : (
+            <input ref={firstInput} className="num-input" inputMode="decimal" aria-label={`Set ${index + 1} weight, ${unit}`} value={editing.weight}
+              onChange={(e) => setEditing({ ...editing, weight: e.target.value.replace(/[^\d.,]/g, '') })} />
           )}
-          <Stepper label="Reps" value={draft.reps} step={1} onChange={(v) => setDraft({ ...draft, reps: v === null ? null : Math.round(v) })} />
-          <div className="rir">
-            <div className="mini-label">Reps left in reserve</div>
-            <Chips label="Reps in reserve" value={draft.rir} options={RIR_OPTIONS} onChange={(v) => setDraft({ ...draft, rir: v })} />
+        </span>
+        <span role="cell">
+          <input ref={bodyweight ? firstInput : undefined} className="num-input" inputMode="numeric" pattern="[0-9]*" aria-label={`Set ${index + 1} reps`} value={editing.reps}
+            onChange={(e) => setEditing({ ...editing, reps: e.target.value.replace(/\D/g, '') })} />
+        </span>
+        <span role="cell"><button type="submit" className="check-btn ready" aria-label={`Save changes to set ${index + 1}`}><Icon name="check" /></button></span>
+        <div className="set-tools">
+          <RirPicker idPrefix={`edit-${set.id}`} value={editing.rir} onChange={(v) => setEditing({ ...editing, rir: v })} />
+          <div className="edit-actions">
+            <button type="button" className="ghost danger" onClick={() => onDelete(set)}><Icon name="trash" size="sm" />Delete set</button>
+            <button type="button" onClick={() => { setEditing(null); setError(''); }}>Cancel</button>
           </div>
-          <button
-            className={`${done ? '' : 'primary'} block`}
-            style={{ gridColumn: '1 / 4' }}
-            disabled={!draft.reps || (!bodyweight && draft.weightKg === null)}
-            onClick={() => onLog(draft)}
-          >
-            {done ? `Log extra set ${logged.length + 1}` : `Log set ${logged.length + 1}`}
-          </button>
         </div>
-      )}
-    </section>
+        {error && <p className="set-error" role="alert">{error}</p>}
+      </form>
+    );
+  }
+
+  return (
+    <div className={`set is-done${justDone ? ' just-done' : ''}`} role="row">
+      <span className="set-no" role="cell">{index + 1}</span>
+      <span className="set-prev" role="cell">{prevText}</span>
+      <span className="set-value" role="cell">{set.weightKg === null ? 'BW' : kg(set.weightKg)}{perHand && <small>each</small>}</span>
+      <span className="set-value" role="cell">{set.reps}<small>RIR {set.rir === 4 ? '4+' : set.rir ?? '–'}</small></span>
+      <span role="cell">
+        <button className="check-btn" aria-label={`Edit set ${index + 1}: ${set.weightKg ?? 'bodyweight'} by ${set.reps}`} onClick={() => setEditing(draftFrom(set))}>
+          <Icon name="check" />
+        </button>
+      </span>
+    </div>
   );
 }

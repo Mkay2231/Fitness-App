@@ -1,0 +1,34 @@
+{
+  "name": "Rep Ledger",
+  "source": "src/styles.css",
+  "colorStrategy": "restrained",
+  "colors": {
+    "bg": "#F6F5F1",
+    "surface": "#FFFFFF",
+    "surfaceSunk": "#EFEDE7",
+    "text": "#202420",
+    "muted": "#5B625B",
+    "faint": "#757B74",
+    "border": "#E4E1D9",
+    "borderStrong": "#8A8F88",
+    "accent": "#245C45",
+    "accentHover": "#1C4A37",
+    "accentSoft": "#E4EEE8",
+    "accentWash": "#D3E6DB",
+    "warn": "#7A5200",
+    "warnSoft": "#F8EED6",
+    "danger": "#A8261B",
+    "dangerSoft": "#FBE9E6"
+  },
+  "typography": {
+    "family": "Inter Variable",
+    "body": { "size": "16px", "lineHeight": 1.5 },
+    "h1": { "size": "28px", "weight": 650 },
+    "h2": { "size": "19px", "weight": 620 },
+    "h3": { "size": "16px", "weight": 600 },
+    "numerals": "tabular-nums"
+  },
+  "radii": { "control": "8px", "panel": "12px", "sheet": "16px" },
+  "spacing": { "gutter": "16px", "tapTarget": "48px", "sidebar": "232px", "contentWidth": "640px", "workoutWidth": "760px" },
+  "motion": { "ease": "cubic-bezier(0.16, 1, 0.3, 1)", "reducedMotion": "instant" }
+}

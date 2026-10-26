@@ -5,6 +5,7 @@ import { nowISO, retarget, reviewFor, targetsOn, today } from '../data';
 import { addDays, weekStart } from '../rules/dates';
 import { fmtRate } from '../rules/nutrition';
 import type { Recommendation } from '../rules/review';
+import { Icon } from '../icons';
 import { Empty, Reasons, fmt, fmtDate } from '../ui';
 
 export default function Review() {
@@ -31,15 +32,19 @@ export default function Review() {
   }
 
   return (
-    <>
-      <div className="row between">
-        <button className="ghost" aria-label="Previous week" onClick={() => setMonday(addDays(monday, -7))}>‹</button>
-        <h1 style={{ margin: 0, textAlign: 'center' }}>Week of {fmtDate(monday, { day: 'numeric', month: 'short' })}</h1>
-        <button className="ghost" aria-label="Next week" disabled={isCurrent} onClick={() => setMonday(addDays(monday, 7))}>›</button>
-      </div>
-      {isCurrent && <p className="muted small" style={{ textAlign: 'center' }}>Week in progress, up to {fmtDate(review.endDate)}.</p>}
+    <div className="page">
+      <header className="page-head page-head-row">
+        <div>
+          <h1>Review</h1>
+          <p className="meta">Week of {fmtDate(monday, { day: 'numeric', month: 'long' })}{isCurrent ? `, in progress up to ${fmtDate(review.endDate, { weekday: 'long' })}` : ''}</p>
+        </div>
+        <div className="row" style={{ gap: 4 }}>
+          <button className="ghost icon-btn" aria-label="Previous week" onClick={() => setMonday(addDays(monday, -7))}><Icon name="back" /></button>
+          <button className="ghost icon-btn" aria-label="Next week" disabled={isCurrent} onClick={() => setMonday(addDays(monday, 7))}><Icon name="next" /></button>
+        </div>
+      </header>
 
-      <section className="card" style={{ marginTop: 12 }} aria-label="Training">
+      <section className="card" aria-label="Training">
         <h2>Training</h2>
         <div className="kpis">
           <div className="kpi"><div className="v">{training.completed.length + training.extra.length} / {training.planned.length}</div><div className="l">sessions done / planned</div></div>
@@ -110,6 +115,6 @@ export default function Review() {
           ))}</ul>
         </details>
       )}
-    </>
+    </div>
   );
 }

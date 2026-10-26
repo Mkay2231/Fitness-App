@@ -26,7 +26,9 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,ico,json}'],
+        // Inter must be cached too, or the app falls back to system fonts offline.
+        // Only the Latin subsets: they cover English and Yoruba/Igbo/Hausa letters with diacritics.
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,json}', '**/inter-latin-wght-normal-*.woff2', '**/inter-latin-ext-wght-normal-*.woff2'],
         navigateFallback: 'index.html',
       },
     }),
