@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { NavLink, Route, Routes } from 'react-router-dom';
 import { db } from './db';
+import { useOnline } from './install';
 import Onboarding from './screens/Onboarding';
 import Today from './screens/Today';
 import Workout from './screens/Workout';
@@ -40,11 +41,13 @@ function Nav() {
 export default function App() {
   // undefined while loading, null when there is no profile yet.
   const settings = useLiveQuery(async () => (await db.settings.get('me')) ?? null);
+  const online = useOnline();
   if (settings === undefined) return null;
   if (settings === null) return <main className="app"><Onboarding /></main>;
   return (
     <>
       <main className="app">
+        {!online && <div className="offline" role="status">Offline. Everything you log is saved on this phone.</div>}
         <Routes>
           <Route path="/" element={<Today />} />
           <Route path="/workout/:id" element={<Workout />} />

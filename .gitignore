@@ -8,3 +8,5 @@ dev-dist
 .netlify
 coverage
 *.tsbuildinfo
+offline-check-failure.png
+data/wafct/

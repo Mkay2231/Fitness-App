@@ -10,6 +10,13 @@ const SLOTS: { id: MealSlot; label: string }[] = [
   { id: 'breakfast', label: 'Breakfast' }, { id: 'lunch', label: 'Lunch' }, { id: 'dinner', label: 'Dinner' }, { id: 'snack', label: 'Snacks' },
 ];
 
+const sourceLabel = (f: FoodItem) =>
+  f.id.startsWith('wafct-') ? 'FAO West Africa table'
+    : f.id.startsWith('fdc-') ? 'USDA'
+      : f.source.kind === 'label' ? 'Food label'
+        : f.source.kind === 'reference' ? 'Reference table'
+          : 'Your estimate';
+
 const macros = (f: FoodItem, grams: number) => ({
   kcal: (f.kcal * grams) / 100, proteinG: (f.proteinG * grams) / 100, carbsG: (f.carbsG * grams) / 100, fatG: (f.fatG * grams) / 100,
 });
@@ -169,7 +176,7 @@ function AddFood({ date, slot, onClose }: { date: string; slot: MealSlot; onClos
         {shown.map((f) => (
           <li key={f.id}>
             <button className="ghost block" style={{ justifyContent: 'space-between', textAlign: 'left', padding: '0 4px' }} onClick={() => setPicked(f)}>
-              <span className="grow">{f.name}<br /><span className="muted small">{f.source.kind === 'reference' ? 'Reference data' : f.source.kind === 'label' ? 'Food label' : 'Your estimate'}</span></span>
+              <span className="grow">{f.name}<br /><span className="muted small">{sourceLabel(f)}</span></span>
               <span className="muted small num">{fmt(f.kcal)} kcal/100 g</span>
             </button>
           </li>
@@ -180,11 +187,19 @@ function AddFood({ date, slot, onClose }: { date: string; slot: MealSlot; onClos
   );
 }
 
+const MEASURE_BASIS = { weighed: 'weighed by me', estimate: 'my estimate, not weighed' } as const;
+
 function Portion({ food, onAdd, onBack }: { food: FoodItem; onAdd: (grams: number, text: string) => void; onBack: () => void }) {
-  const options = [{ label: 'grams', grams: 1, basis: '' }, ...food.measures];
+  const mine = useLiveQuery(() => db.measures.where('foodId').equals(food.id).toArray(), [food.id]) ?? [];
+  const options = [
+    { label: 'grams', grams: 1, basis: '', userId: undefined as number | undefined },
+    ...mine.map((m) => ({ label: m.label, grams: m.grams, basis: MEASURE_BASIS[m.basis], userId: m.id })),
+    ...food.measures.map((m) => ({ ...m, userId: undefined })),
+  ];
   const [idx, setIdx] = useState(food.measures.length ? 1 : 0);
   const [qty, setQty] = useState(idx === 0 ? '100' : '1');
-  const m = options[idx];
+  const [addingMeasure, setAddingMeasure] = useState(false);
+  const m = options[Math.min(idx, options.length - 1)];
   const grams = (+qty.replace(',', '.') || 0) * m.grams;
   const est = macros(food, grams);
   const text = idx === 0 ? `${qty} g` : `${qty} × ${m.label}`;
@@ -195,11 +210,21 @@ function Portion({ food, onAdd, onBack }: { food: FoodItem; onAdd: (grams: numbe
         <div className="field grow">
           <label htmlFor="unit">Unit</label>
           <select id="unit" value={idx} onChange={(e) => { const i = +e.target.value; setIdx(i); setQty(i === 0 ? '100' : '1'); }}>
-            {options.map((o, i) => <option key={o.label} value={i}>{i === 0 ? 'grams' : `${o.label} (${fmt(o.grams)} g)`}</option>)}
+            {options.map((o, i) => <option key={i} value={i}>{i === 0 ? 'grams' : `${o.label} (${fmt(o.grams)} g)`}</option>)}
           </select>
         </div>
       </div>
-      {idx > 0 && <p className="hint">Gram weight basis: {m.basis}. Weigh it once on a kitchen scale to make this more accurate.</p>}
+      {idx > 0 && (
+        <p className="hint">
+          Gram weight: {m.basis}.{m.basis !== MEASURE_BASIS.weighed && ' Weigh it once on a kitchen scale to make this more accurate.'}
+          {m.userId !== undefined && <> <button className="ghost danger small" style={{ minHeight: 32, padding: '0 6px' }} onClick={() => { setIdx(0); setQty('100'); void db.measures.delete(m.userId!); }}>Remove measure</button></>}
+        </p>
+      )}
+      {addingMeasure ? (
+        <AddMeasure foodId={food.id} onDone={(added) => { setAddingMeasure(false); if (added) { setIdx(1); setQty('1'); } }} />
+      ) : (
+        <button className="ghost small" onClick={() => setAddingMeasure(true)}>+ Add a household measure (spoon, cup, wrap…)</button>
+      )}
       <div className="kpis" style={{ margin: '8px 0' }}>
         <div className="kpi"><div className="v">{fmt(est.kcal)}</div><div className="l">kcal (est.)</div></div>
         <div className="kpi"><div className="v">{fmt(est.proteinG, 1)} g</div><div className="l">protein</div></div>
@@ -210,6 +235,34 @@ function Portion({ food, onAdd, onBack }: { food: FoodItem; onAdd: (grams: numbe
         <button className="primary grow" disabled={grams <= 0} onClick={() => onAdd(grams, text)}>Add {fmt(grams)} g</button>
       </div>
     </>
+  );
+}
+
+const COMMON_MEASURES = ['1 serving spoon', '1 cooking spoon', '1 cup', '1 wrap', '1 piece', '1 tablespoon', '1 handful'];
+
+function AddMeasure({ foodId, onDone }: { foodId: string; onDone: (added: boolean) => void }) {
+  const [label, setLabel] = useState('');
+  const [grams, setGrams] = useState('');
+  const [basis, setBasis] = useState<'weighed' | 'estimate'>('estimate');
+  const g = +grams.replace(',', '.');
+  const ok = label.trim() && g > 0 && g < 5000;
+  return (
+    <div className="card soft" style={{ padding: 12 }}>
+      <div className="field">
+        <label htmlFor="mlabel">Measure</label>
+        <input id="mlabel" list="common-measures" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="1 serving spoon" />
+        <datalist id="common-measures">{COMMON_MEASURES.map((c) => <option key={c} value={c} />)}</datalist>
+        <div className="hint">Use your own spoon, cup or wrap size, since these vary a lot between homes.</div>
+      </div>
+      <div className="field"><label htmlFor="mgrams">Grams in one</label><input id="mgrams" inputMode="decimal" value={grams} onChange={(e) => setGrams(e.target.value)} /></div>
+      <div className="field">
+        <Chips label="How do you know the grams?" value={basis} onChange={setBasis} options={[{ value: 'weighed', label: 'I weighed it' }, { value: 'estimate', label: 'Estimate' }]} />
+      </div>
+      <div className="row">
+        <button onClick={() => onDone(false)}>Cancel</button>
+        <button className="primary grow" disabled={!ok} onClick={async () => { await db.measures.add({ foodId, label: label.trim(), grams: g, basis }); onDone(true); }}>Save measure</button>
+      </div>
+    </div>
   );
 }
 

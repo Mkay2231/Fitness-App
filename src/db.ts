@@ -118,7 +118,16 @@ export interface Food {
   builtIn: boolean;
 }
 
-export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+/** A household measure you added to any food (kept apart so built-in updates never erase it). */
+export interface UserMeasure {
+  id?: number;
+  foodId: string;
+  label: string;
+  grams: number;
+  basis: 'weighed' | 'estimate';
+}
+
+export type MealSlot ='breakfast' | 'lunch' | 'dinner' | 'snack';
 
 export interface FoodEntry {
   id?: number;
@@ -178,6 +187,7 @@ export const db = new Dexie('rep-ledger') as Dexie & {
   foodDays: EntityTable<FoodDay, 'date'>;
   targets: EntityTable<TargetVersion, 'id'>;
   decisions: EntityTable<Decision, 'key'>;
+  measures: EntityTable<UserMeasure, 'id'>;
 };
 
 db.version(1).stores({
@@ -194,6 +204,10 @@ db.version(1).stores({
   foodDays: 'date',
   targets: '++id, effectiveFrom',
   decisions: 'key',
+});
+
+db.version(2).stores({
+  measures: '++id, foodId',
 });
 
 /** Ask the browser not to clear this data under storage pressure. */

@@ -163,7 +163,7 @@ export async function reviewFor(monday: ISODate) {
 
 // ---------- Backup ----------
 
-const TABLES = ['settings', 'programs', 'sessions', 'sets', 'weights', 'measurements', 'foods', 'foodEntries', 'savedMeals', 'foodDays', 'targets', 'decisions'] as const;
+const TABLES = ['settings', 'programs', 'sessions', 'sets', 'weights', 'measurements', 'foods', 'foodEntries', 'savedMeals', 'foodDays', 'targets', 'decisions', 'measures'] as const;
 
 export async function exportAll(): Promise<string> {
   const data: Record<string, unknown[]> = {};

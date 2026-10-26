@@ -2,6 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useState } from 'react';
 import { db, type EquipmentKind, type Settings } from '../db';
 import { activateProgram, exportAll, getActiveProgram, importAll, nowISO, today } from '../data';
+import { isIOS, isStandalone, useInstall } from '../install';
 import { initialTargets } from '../rules/nutrition';
 import { PROGRAM_TEMPLATES } from '../seed/programs';
 import { Reasons } from '../ui';
@@ -55,6 +56,7 @@ export default function SettingsScreen() {
     <>
       <h1>More</h1>
       {msg && <div className="card soft" role="status">{msg}</div>}
+      <InstallCard />
 
       <section className="card" aria-label="Program">
         <h2>Program</h2>
@@ -132,6 +134,24 @@ export default function SettingsScreen() {
         </div>
       </section>
     </>
+  );
+}
+
+function InstallCard() {
+  const { canPrompt, prompt } = useInstall();
+  if (isStandalone()) return null;
+  return (
+    <section className="card" aria-label="Install">
+      <h2>Install on your phone</h2>
+      <p className="small">Installed, it opens like an app from your home screen and works with no internet, so you can log sets at the gym.</p>
+      {canPrompt ? (
+        <button className="primary block" onClick={prompt}>Install app</button>
+      ) : isIOS() ? (
+        <p className="small">In <strong>Safari</strong>, tap the <strong>Share</strong> button, then <strong>Add to Home Screen</strong>.</p>
+      ) : (
+        <p className="small">In <strong>Chrome</strong>, open the <strong>⋮</strong> menu and tap <strong>Install app</strong> or <strong>Add to Home screen</strong>. This needs the published (https) version of the app.</p>
+      )}
+    </section>
   );
 }
 

@@ -8,7 +8,7 @@ export default defineConfig({
     // Caches the app files so it opens and logs workouts with no internet.
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon.svg'],
+      includeAssets: ['icon.svg', 'favicon.ico', 'apple-touch-icon-180x180.png'],
       manifest: {
         name: 'Rep Ledger',
         short_name: 'Rep Ledger',
@@ -17,13 +17,23 @@ export default defineConfig({
         background_color: '#0f1412',
         display: 'standalone',
         start_url: '/',
-        icons: [{ src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' }],
+        // Generated from public/icon.svg with `npx pwa-assets-generator --preset minimal-2023 public/icon.svg`.
+        icons: [
+          { src: 'pwa-64x64.png', sizes: '64x64', type: 'image/png' },
+          { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
+          { src: 'maskable-icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
       },
-      workbox: { globPatterns: ['**/*.{js,css,html,svg,json}'] },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,json}'],
+        navigateFallback: 'index.html',
+      },
     }),
   ],
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts'],
+    exclude: ['node_modules', 'dist'],
   },
 });
