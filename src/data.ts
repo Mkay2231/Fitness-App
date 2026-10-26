@@ -1,7 +1,7 @@
 // Reads and writes that combine the database with the rules engine.
 
 import { db, type Exercise, type FoodEntry, type Program, type ProgramDay, type ProgramSlot, type SetLog, type Settings, type TargetVersion } from './db';
-import { addDays, toISODate, weekDates, type ISODate } from './rules/dates';
+import { addDays, parseISODate, toISODate, weekDates, type ISODate } from './rules/dates';
 import { FAT_SHARE, MIN_FAT_G_PER_KG, roundTo } from './rules/nutrition';
 import { suggestNext, type ExerciseSession, type Prescription, type Suggestion } from './rules/progression';
 import { buildProgram, programChanges } from './rules/program';
@@ -10,6 +10,7 @@ import { setsByMuscle } from './rules/volume';
 import { EXERCISES } from './seed/exercises';
 import { FOODS } from './seed/foods';
 import { PROGRAM_TEMPLATES } from './seed/programs';
+import { makeUnits } from './units';
 
 export const today = (): ISODate => toISODate(new Date());
 export const nowISO = () => new Date().toISOString();
@@ -214,25 +215,50 @@ export async function reviewFor(monday: ISODate) {
   const ids = new Set(sessions.map((s) => s.id));
   const sets = (await db.sets.where('date').between(days[0], days[6], true, true).toArray()).filter((s) => ids.has(s.sessionId));
   const muscles = Object.fromEntries((await db.exercises.toArray()).map((e) => [e.id, { primary: e.primary, secondary: e.secondary }]));
-  const targets = await targetsOn(end);
+  // Weeks before your first targets (e.g. restored records) are compared with your earliest targets.
+  const targets = (await targetsOn(end)) ?? (await db.targets.orderBy('effectiveFrom').first());
   const weighIns = (await db.weights.where('date').belowOrEqual(end).toArray()).sort((a, b) => (a.date < b.date ? -1 : 1));
   if (!settings || !targets) return null;
+
+  // Each exercise done this week: its latest finished session this week and the one before it.
+  const exercises = [];
+  for (const exerciseId of new Set(sets.map((s) => s.exerciseId))) {
+    const history = await exerciseHistory(exerciseId);
+    const idx = history.findIndex((h) => h.date >= monday && h.date <= end);
+    if (idx === -1) continue;
+    exercises.push({ exerciseId, name: EXERCISE_NAMES[exerciseId] ?? exerciseId, latest: history[idx], previous: history[idx + 1] });
+  }
+
+  const allMeasurements = (await db.measurements.where('date').belowOrEqual(end).toArray()).sort((a, b) => (a.date < b.date ? -1 : 1));
+  const measurements = [...new Set(allMeasurements.map((m) => m.site))].map((site) => {
+    const ms = allMeasurements.filter((m) => m.site === site);
+    return { site, latest: ms.at(-1)!, previous: ms.at(-2) };
+  });
+
+  const u = makeUnits(settings.weightUnit, settings.lengthUnit);
   return buildWeeklyReview({
     weekStart: monday,
     asOf: today(),
     plannedWeekdays: settings.trainingDays,
     completedSessionDates: [...new Set(sessions.map((s) => s.date))],
     setsByMuscle: setsByMuscle(sets.map((s) => s.exerciseId), muscles),
+    exercises,
     foodDays: await foodDaySummaries(addDays(end, -13), end),
     weighIns,
+    measurements,
+    checkIns: await db.checkins.where('date').between(days[0], days[6], true, true).toArray(),
     targets,
     gainRatePctPerWeek: settings.gainRatePctPerWeek,
+    fmtWeight: (kg) => u.w(kg),
+    fmtRate: u.rate,
+    fmtLength: (cm) => u.l(cm),
+    fmtDay: (iso) => parseISODate(iso).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }),
   });
 }
 
 // ---------- Backup ----------
 
-const TABLES = ['settings', 'programs', 'sessions', 'sets', 'weights', 'measurements', 'foods', 'foodEntries', 'savedMeals', 'foodDays', 'targets', 'decisions', 'measures'] as const;
+const TABLES = ['settings', 'programs', 'sessions', 'sets', 'weights', 'measurements', 'foods', 'foodEntries', 'savedMeals', 'foodDays', 'targets', 'decisions', 'measures', 'checkins'] as const;
 
 export async function exportAll(): Promise<string> {
   const data: Record<string, unknown[]> = {};

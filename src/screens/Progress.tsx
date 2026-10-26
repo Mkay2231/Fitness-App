@@ -4,7 +4,7 @@ import { db, type WeightLog } from '../db';
 import { exerciseHistory, today } from '../data';
 import { Icon } from '../icons';
 import { wt } from '../plan';
-import { addDays, daysBetween } from '../rules/dates';
+import { addDays, daysBetween, isoWeekday, weekDates, weekStart } from '../rules/dates';
 import { bestOneRepMax } from '../rules/progression';
 import { sevenDayAverage, weeklyRate } from '../rules/trend';
 import { Empty, Loading, fmt, fmtDate } from '../ui';
@@ -21,7 +21,17 @@ export default function Progress() {
     const ids = [...new Set(sets.map((s) => s.exerciseId))];
     const names = new Map((await db.exercises.toArray()).map((e) => [e.id, e.name]));
     const lifts = (await Promise.all(ids.map(async (id) => ({ id, name: names.get(id) ?? id, history: await exerciseHistory(id) })))).filter((l) => l.history.length > 0);
-    return { weights, measurements, lifts };
+    // Workout completion for the last 4 weeks: planned days so far vs days with a finished workout.
+    const settings = (await db.settings.get('me'))!;
+    const done = new Set((await db.sessions.filter((s) => s.finishedAt !== null).toArray()).map((s) => s.date));
+    const thisMonday = weekStart(today());
+    const weeks = [0, 1, 2, 3].map((n) => {
+      const monday = addDays(thisMonday, -7 * n);
+      const days = weekDates(monday).filter((d) => d <= today());
+      const planned = days.filter((d) => settings.trainingDays.includes(isoWeekday(d)));
+      return { monday, planned: planned.length, done: days.filter((d) => done.has(d)).length, missed: planned.filter((d) => !done.has(d) && d < today()).length };
+    });
+    return { weights, measurements, lifts, weeks };
   });
 
   const [wDate, setWDate] = useState(today());
@@ -32,7 +42,7 @@ export default function Progress() {
   const [mError, setMError] = useState('');
 
   if (!data) return <Loading label="Loading progress" />;
-  const { weights, measurements, lifts } = data;
+  const { weights, measurements, lifts, weeks } = data;
   const d = today();
   const avg = sevenDayAverage(weights, d);
   const rate = weeklyRate(weights, d);
@@ -77,8 +87,9 @@ export default function Progress() {
           <>
             <div className="kpis" style={{ marginTop: 10 }}>
               <div className="kpi"><div className="v">{avg !== null ? u.w(avg) : '–'}</div><div className="l">7-day average{avg === null ? ' (none this week)' : ''}</div></div>
-              <div className="kpi"><div className="v">{rate !== null ? u.rate(rate) : '–'}</div><div className="l">{rate !== null ? '14-day trend' : 'Trend needs 8 weigh-ins over 10+ days'}</div></div>
+              <div className="kpi"><div className="v">{rate !== null ? u.rate(rate) : '–'}</div><div className="l">{rate !== null ? '14-day weight trend' : 'Trend needs 8 weigh-ins over 10+ days'}</div></div>
             </div>
+            <p className="hint">This is scale weight: it includes water, food and fat as well as muscle, so it can't show muscle gain on its own. Read it alongside your lifts and measurements.</p>
             <WeightChart weights={weights} u={u} />
             <details><summary className="small">All weigh-ins ({weights.length})</summary>
               <ul className="list">{[...weights].reverse().map((w) => (
@@ -114,6 +125,19 @@ export default function Progress() {
             })}
           </ul>
         )}
+      </section>
+
+      <section className="card" aria-labelledby="wk-h">
+        <h2 id="wk-h">Workouts</h2>
+        <ul className="rows">
+          {weeks.map((w) => (
+            <li key={w.monday} className="row between">
+              <span>{w.monday === weekStart(today()) ? 'This week' : `Week of ${fmtDate(w.monday, { day: 'numeric', month: 'short' })}`}</span>
+              <span className="num small">{w.done} of {w.planned} planned{w.missed ? <span className="muted"> · {w.missed} not logged</span> : ''}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="hint">Planned days so far each week. A day only counts once its workout is finished.</p>
       </section>
 
       <section aria-labelledby="lifts-h">

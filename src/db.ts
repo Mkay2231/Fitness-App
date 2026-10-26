@@ -5,6 +5,7 @@ import Dexie, { type EntityTable } from 'dexie';
 import type { Activity, Sex } from './rules/nutrition';
 import type { ISODate } from './rules/dates';
 import type { AvoidCategory } from './rules/foodPrefs';
+import type { CheckIn } from './rules/review';
 import type { Experience, Limitation, Setting } from './rules/program';
 import type { LengthUnit, WeightUnit } from './rules/units';
 
@@ -185,7 +186,8 @@ export interface TargetVersion {
 export interface Decision {
   /** Recommendation key, e.g. "2026-10-19:calories". */
   key: string;
-  status: 'accepted' | 'rejected';
+  /** accepted/rejected for plan changes; noted for suggested actions. */
+  status: 'accepted' | 'rejected' | 'noted';
   title: string;
   reasons: string[];
   decidedAt: string;
@@ -206,6 +208,7 @@ export const db = new Dexie('rep-ledger') as Dexie & {
   targets: EntityTable<TargetVersion, 'id'>;
   decisions: EntityTable<Decision, 'key'>;
   measures: EntityTable<UserMeasure, 'id'>;
+  checkins: EntityTable<CheckIn, 'date'>;
 };
 
 db.version(1).stores({
@@ -242,6 +245,9 @@ db.version(3).stores({}).upgrade(async (tx) => {
     s.lengthUnit ??= 'cm';
   });
 });
+
+// v4: optional daily sleep, energy and soreness check-ins.
+db.version(4).stores({ checkins: 'date' });
 
 /** Ask the browser not to clear this data under storage pressure. */
 export async function requestPersistentStorage(): Promise<boolean> {

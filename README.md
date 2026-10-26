@@ -119,6 +119,38 @@ npm run check:profile   # second terminal: setup → reload → edit → reload,
 npm run check:workout   # with `npm run dev` running: full session, edits, reload/resume, swap, progression, programme editor
 ```
 
+## Progress and the weekly review
+
+**Progress** covers:
+- **Body weight:** a 7-day average and 14-day trend, labelled as scale weight, with a note that it can't show muscle gain on its own.
+- **Measurements:** optional.
+- **Workout completion:** planned versus finished for the last 4 weeks.
+- **Exercise performance:** each lift's sessions and estimated 1-rep max.
+
+**Review** (one week at a time) builds everything from saved records with fixed rules (`src/rules/review.ts`, `performance.ts`):
+
+| Section | What it shows | Rule |
+|---|---|---|
+| This week in brief | 4–6 plain sentences | Each one is generated from a number below; no AI |
+| Suggested next steps | At most 3, plan changes first | Each lists its evidence ("Based on") and the rule behind it |
+| Training | Planned vs finished, missed days, sets per muscle | A planned day without a finished workout is missed; today isn't missed until it's over |
+| Lifts | Each exercise vs its previous session | Estimated 1RM (best-set reps for bodyweight); under 2% change counts as about the same; never compared across different exercises |
+| Body | 7-day average, 14-day trend, measurements | Trend needs 8 weigh-ins over 10+ days |
+| Nutrition | Averages of complete days | Shown only with 4+ complete days; partial days left out; complete days under 40% of target are flagged |
+| Recovery | Sleep, energy, soreness averages | From optional check-ins on Today; blanks are ignored |
+| Missing data and uncertainty | What's missing, and signals that don't agree | For example, weight rising faster than planned while lifts don't improve |
+
+How suggestions work:
+- **Plan changes** (calories, protein) are applied only when you press Accept. Keep current records a rejection.
+- **Actions** (keep logging, protect training days, prioritise recovery) are marked Noted.
+- **Too little data** leads to "Keep your plan as it is and keep logging", never a guess.
+- **Every decision is dated**, together with the evidence it was based on, under *Decision history*.
+- **AI summaries are off.** If they are added later, they will only rephrase these records, and the rule-based summary stays as the fallback.
+
+```bash
+npm run check:review   # with `npm run dev` running: seeds two weeks of records, checks Progress, the review, decisions and check-ins
+```
+
 ## Training plan (beginner)
 
 The plan is full body, 3 days a week on non-consecutive days (default Mon/Wed/Fri), alternating sessions A and B, about 50–60 minutes each. There are gym and home (dumbbells + bench) versions; switch in *More*.
@@ -182,7 +214,7 @@ The free plan costs nothing for a personal app. The site is public, but your dat
 
 ## Known limitations
 
-- **Explanations stay in kg:** the reason text inside weekly-review suggestions and target history is written in kg, even when lb is selected. Numbers on screens and inputs follow your units.
+- **Calorie evidence stays in kg:** the calorie-adjustment evidence text (weight trend vs goal) is written in kg, even when lb is selected. Lift comparisons, measurements, the summary and all screens follow your units.
 - **Fixed swap list:** limitation swaps cover the built-in exercises only and are not a substitute for a physiotherapist.
 - **Food preferences go by name:** a food you create named, say, "Mama's special" isn't recognised as beef.
 - **Units mid-workout:** numbers already typed into an unlogged set keep the unit they were typed in if you switch units during a workout.

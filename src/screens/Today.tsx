@@ -8,6 +8,7 @@ import { PlanList } from '../plan';
 import { addDays, isoWeekday, weekDates, weekStart } from '../rules/dates';
 import { Loading, fmt, fmtDate } from '../ui';
 import { useUnits } from '../units';
+import CheckIn from './CheckIn';
 
 export default function Today() {
   const date = today();
@@ -164,6 +165,7 @@ export default function Today() {
               </form>
             )}
           </li>
+          <li><CheckIn date={date} /></li>
           <li>
             <Link className="row-link" to="/review">
               <Icon name="review" />
