@@ -19,7 +19,9 @@ async function inspect(label) {
     const out = { overflow: 0, small: [], unlabelled: [] };
     out.overflow = document.documentElement.scrollWidth - document.documentElement.clientWidth;
     for (const el of document.querySelectorAll('button, a[href], input, select, textarea, summary, [role="radio"]')) {
-      const rect = el.getBoundingClientRect();
+      // A checkbox inside a label is tapped through the whole label, so that's the target to measure.
+      const target = el.type === 'checkbox' && el.closest('label') ? el.closest('label') : el;
+      const rect = target.getBoundingClientRect();
       const style = getComputedStyle(el);
       if (rect.width === 0 || style.visibility === 'hidden' || el.closest('[hidden]')) continue;
       if (el.type === 'file' || el.type === 'hidden') continue;
@@ -86,10 +88,12 @@ try {
   await heading('Help');
   await inspect('Help');
 
-  for (const [route, heading] of [['train', 'Train'], ['food', 'Food'], ['food?view=prep', 'Food'], ['food?view=log', 'Food'], ['progress', 'Progress'], ['review', 'Review'], ['settings', 'Settings'], ['train/edit', 'Edit programme']]) {
+  for (const [route, heading, label] of [['train', 'Train'], ['food', 'Food', 'Food plan'], ['food?view=prep', 'Food', 'Food week prep'], ['food?view=log', 'Food', 'Food log'], ['progress', 'Progress'], ['review', 'Review'], ['settings', 'Settings'], ['train/edit', 'Edit programme']]) {
     await page.goto(`${URL}#/${route}`);
     await page.getByRole('heading', { name: heading, exact: true }).waitFor();
-    await inspect(heading);
+    // Measure the loaded screen, not the loading placeholder.
+    await page.waitForFunction(() => !document.querySelector('[aria-busy="true"]'));
+    await inspect(label ?? heading);
   }
 
   // Keyboard-only set logging: focus the weight box, type, Tab to reps, Enter.
