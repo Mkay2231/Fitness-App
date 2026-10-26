@@ -63,6 +63,18 @@ export function Reasons({ items }: { items: string[] }) {
   return <ul className="reasons">{items.map((r, i) => <li key={i}>{r}</li>)}</ul>;
 }
 
+/** Placeholder while local data loads (usually a few milliseconds; longer on slow phones). */
+export function Loading({ label = 'Loading' }: { label?: string }) {
+  return (
+    <div className="page" aria-busy="true">
+      <div className="skeleton title" />
+      <div className="skeleton line" />
+      <div className="skeleton block" />
+      <p className="visually-hidden" role="status">{label}…</p>
+    </div>
+  );
+}
+
 export function Empty({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <div className="card soft">

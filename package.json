@@ -13,6 +13,7 @@
     "typecheck": "tsc -b",
     "foods:wafct": "node scripts/import-wafct.mjs",
     "check:offline": "node scripts/offline-check.mjs",
+    "check:profile": "node scripts/profile-check.mjs",
     "foods:import": "node --env-file-if-exists=.env.local scripts/import-usda.mjs"
   },
   "dependencies": {

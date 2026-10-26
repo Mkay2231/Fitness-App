@@ -3,16 +3,17 @@ import { useState } from 'react';
 import { db } from '../db';
 import { nowISO, retarget, reviewFor, targetsOn, today } from '../data';
 import { addDays, weekStart } from '../rules/dates';
-import { fmtRate } from '../rules/nutrition';
+import { useUnits } from '../units';
 import type { Recommendation } from '../rules/review';
 import { Icon } from '../icons';
-import { Empty, Reasons, fmt, fmtDate } from '../ui';
+import { Empty, Loading, Reasons, fmt, fmtDate } from '../ui';
 
 export default function Review() {
+  const u = useUnits();
   const [monday, setMonday] = useState(weekStart(today()));
   const review = useLiveQuery(() => reviewFor(monday), [monday]);
   const decisions = useLiveQuery(() => db.decisions.toArray()) ?? [];
-  if (review === undefined) return null;
+  if (review === undefined) return <Loading label="Loading review" />;
   if (review === null) return <Empty title="Nothing to review yet">Finish setup first.</Empty>;
 
   const isCurrent = monday === weekStart(today());
@@ -74,8 +75,8 @@ export default function Review() {
       <section className="card" aria-label="Body weight">
         <h2>Body weight</h2>
         <div className="kpis">
-          <div className="kpi"><div className="v">{weight.avg7 !== null ? `${fmt(weight.avg7, 1)} kg` : '–'}</div><div className="l">7-day average{weight.prevAvg7 !== null && weight.avg7 !== null ? ` (${weight.avg7 - weight.prevAvg7 >= 0 ? '+' : ''}${fmt(weight.avg7 - weight.prevAvg7, 2)} vs last week)` : ''}</div></div>
-          <div className="kpi"><div className="v">{weight.rateKgPerWeek !== null ? fmtRate(weight.rateKgPerWeek) : '–'}</div><div className="l">14-day trend</div></div>
+          <div className="kpi"><div className="v">{weight.avg7 !== null ? u.w(weight.avg7) : '–'}</div><div className="l">7-day average{weight.prevAvg7 !== null && weight.avg7 !== null ? ` (${weight.avg7 - weight.prevAvg7 >= 0 ? '+' : '−'}${fmt(Math.abs(u.wNum(weight.avg7) - u.wNum(weight.prevAvg7)), 2)} vs last week)` : ''}</div></div>
+          <div className="kpi"><div className="v">{weight.rateKgPerWeek !== null ? u.rate(weight.rateKgPerWeek) : '–'}</div><div className="l">14-day trend</div></div>
         </div>
         <p className="muted small" style={{ marginTop: 8 }}>{weight.weighInsThisWeek} weigh-in{weight.weighInsThisWeek === 1 ? '' : 's'} this week.</p>
       </section>

@@ -5,14 +5,21 @@ import { db, type Food as FoodItem, type FoodSource, type MealSlot } from '../db
 import { nowISO, targetsOn, today, totalsFor } from '../data';
 import { addDays } from '../rules/dates';
 import { Icon } from '../icons';
-import { Chips, Sheet, fmt, fmtDate } from '../ui';
+import { fitsPreferences, type AvoidCategory } from '../rules/foodPrefs';
+import { Chips, Loading, Sheet, fmt, fmtDate } from '../ui';
 
-const SLOTS: { id: MealSlot; label: string; idea: string }[] = [
-  { id: 'breakfast', label: 'Breakfast', idea: 'Oats with milk and groundnuts, or akara and pap' },
-  { id: 'lunch', label: 'Lunch', idea: 'Jollof rice with chicken, or beans and dodo' },
-  { id: 'dinner', label: 'Dinner', idea: 'Eba with egusi and beef, or yam and egg sauce' },
-  { id: 'snack', label: 'Snacks', idea: 'Boiled eggs, groundnuts, a banana' },
+// Meal ideas are filtered by the foods you said you don't eat.
+const SLOTS: { id: MealSlot; label: string; ideas: string[] }[] = [
+  { id: 'breakfast', label: 'Breakfast', ideas: ['oats with milk and groundnuts', 'akara and pap', 'bread and boiled eggs', 'yam and egg sauce'] },
+  { id: 'lunch', label: 'Lunch', ideas: ['jollof rice with chicken', 'beans and dodo', 'rice and beans with fish stew', 'beans porridge with crayfish'] },
+  { id: 'dinner', label: 'Dinner', ideas: ['eba with egusi and beef', 'semo with efo riro and fish', 'yam porridge with fish', 'eba with egusi and goat meat'] },
+  { id: 'snack', label: 'Snacks', ideas: ['groundnuts', 'boiled eggs', 'a banana', 'garri soaked with milk and groundnuts'] },
 ];
+
+function ideasFor(slot: (typeof SLOTS)[number], avoid: AvoidCategory[]) {
+  const fit = slot.ideas.filter((i) => fitsPreferences(i, avoid)).slice(0, 2);
+  return fit.length ? `Ideas: ${fit.join(', or ')}.` : '';
+}
 
 const sourceLabel = (f: FoodItem) =>
   f.id.startsWith('wafct-') ? 'FAO West Africa table'
@@ -38,10 +45,11 @@ export default function Food() {
       totals: await totalsFor(entries),
       targets: await targetsOn(date),
       mark: await db.foodDays.get(date),
+      avoid: (await db.settings.get('me'))?.avoidFoods ?? [],
     };
   }, [date]);
-  if (!data) return null;
-  const { entries, foods, totals, targets, mark } = data;
+  if (!data) return <Loading label="Loading food log" />;
+  const { entries, foods, totals, targets, mark, avoid } = data;
   const complete = mark?.complete === true;
   const status = complete ? 'complete' : entries.length ? 'partial' : 'not-logged';
   const go = (d: string) => setParams(d === today() ? {} : { date: d });
@@ -109,7 +117,7 @@ export default function Food() {
               <h2 style={{ margin: 0 }}>{slot.label}</h2>
               <span className="muted small num">{list.length ? `${fmt(list.reduce((s, e) => s + macros(foods.get(e.foodId)!, e.grams).kcal, 0))} kcal` : ''}</span>
             </div>
-            {list.length === 0 && <p className="muted small" style={{ margin: '4px 0 0' }}>Nothing logged. Ideas: {slot.idea}.</p>}
+            {list.length === 0 && <p className="muted small" style={{ margin: '4px 0 0' }}>Nothing logged. {ideasFor(slot, avoid)}</p>}
             {list.length > 0 && (
               <ul className="list" style={{ marginTop: 6 }}>
                 {list.map((e) => {
@@ -136,7 +144,7 @@ export default function Food() {
         );
       })}
 
-      {adding && <AddFood date={date} slot={adding} onClose={() => setAdding(null)} />}
+      {adding && <AddFood date={date} slot={adding} avoid={avoid} onClose={() => setAdding(null)} />}
     </div>
   );
 }
@@ -151,8 +159,13 @@ function Kpi({ label, value, target }: { label: string; value: number; target?: 
   );
 }
 
-function AddFood({ date, slot, onClose }: { date: string; slot: MealSlot; onClose: () => void }) {
-  const foods = useLiveQuery(() => db.foods.orderBy('name').toArray()) ?? [];
+function AddFood({ date, slot, avoid, onClose }: { date: string; slot: MealSlot; avoid: AvoidCategory[]; onClose: () => void }) {
+  const allFoods = useLiveQuery(() => db.foods.orderBy('name').toArray());
+  const [showAll, setShowAll] = useState(false);
+  const loading = allFoods === undefined;
+  const fitting = (allFoods ?? []).filter((f) => fitsPreferences(f.name, avoid));
+  const hidden = (allFoods?.length ?? 0) - fitting.length;
+  const foods = showAll ? allFoods ?? [] : fitting;
   const meals = useLiveQuery(() => db.savedMeals.toArray()) ?? [];
   const [q, setQ] = useState('');
   const [picked, setPicked] = useState<FoodItem | null>(null);
@@ -181,6 +194,14 @@ function AddFood({ date, slot, onClose }: { date: string; slot: MealSlot; onClos
         </div>
       )}
       <input type="search" placeholder="Search foods" aria-label="Search foods" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
+      {loading && <p className="muted small" role="status" style={{ marginTop: 8 }}>Loading foods…</p>}
+      {hidden > 0 && (
+        <p className="hint">
+          {showAll ? 'Showing all foods.' : `Hiding ${hidden} food${hidden === 1 ? '' : 's'} you don't eat.`}{' '}
+          <button type="button" className="ghost" style={{ minHeight: 36, padding: '0 6px' }} onClick={() => setShowAll((v) => !v)}>{showAll ? 'Hide them' : 'Show all'}</button>
+        </p>
+      )}
+      {!loading && q && shown.length === 0 && <p className="muted small" style={{ marginTop: 8 }}>No food matches "{q}". Create it below with values from the label or a reference table.</p>}
       {foods.length === 0 && <p className="muted small" style={{ marginTop: 8 }}>The food library is empty. Add your first food below.</p>}
       <ul className="list" style={{ marginTop: 8 }}>
         {shown.map((f) => (

@@ -4,7 +4,7 @@ import { db } from '../db';
 import { estimateMinutes, getActiveProgram, nextProgramDay, openSession, planFor, startSession } from '../data';
 import { Icon } from '../icons';
 import { PlanList, rxText } from '../plan';
-import { fmtDate } from '../ui';
+import { Loading, fmtDate } from '../ui';
 import { WEEKDAYS } from './Onboarding';
 
 export default function Train() {
@@ -22,7 +22,7 @@ export default function Train() {
     const programs = new Map((await db.programs.toArray()).map((p) => [p.id, p]));
     return { settings, program, open, next, plan, exercises, recent: sessions.map((s, i) => ({ s, sets: counts[i], name: programs.get(s.programId)?.days.find((d) => d.id === s.dayId)?.name ?? 'Workout' })) };
   });
-  if (!data) return null;
+  if (!data) return <Loading label="Loading your program" />;
   const { settings, program } = data;
   if (!program) {
     return (

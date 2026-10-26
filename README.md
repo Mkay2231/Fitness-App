@@ -66,6 +66,36 @@ scripts/
 
 **Missing vs zero.** A day with no food entries is *not logged* and is left out of averages. Only days you mark complete count, and "I ate nothing" is a separate, explicit action. A planned training day with no workout shows as *not logged*, not as a rest day.
 
+## Your profile: what each answer changes
+
+Setup asks only for what the app uses. You can edit everything in **Settings → Profile**. If an edit would change your program or targets, the app lists the changes and waits for you to accept or keep the current version.
+
+| Answer | What it changes |
+|---|---|
+| Goal (lean / steady / faster gain, recomposition) | Calorie surplus and the weight trend the weekly review aims for (0.25 / 0.4 / 0.5 / 0% of body weight a week) |
+| Sex, age, height, weight, activity | Starting calories (Mifflin-St Jeor) and protein. Weight is asked once; after that, weigh-ins are used |
+| Experience | New: every set stops 3 reps short. A year or more: main lifts get an extra set |
+| Where you train | Gym or home program |
+| Training days | Which days Today shows a session, and what the review counts as planned |
+| Session length (30–75 min) | Accessory exercises are dropped first, then sets come off the lift with the most, never below 2 |
+| Limitations (knees, lower back, shoulders, wrists) | Swaps exercises that commonly aggravate them, and the workout says why. Not medical advice |
+| Foods you don't eat | Hidden from food search (with a "Show all" option) and from meal ideas |
+| Units (kg/lb, cm/in) | Every weight and length shown and typed. Data is always stored in kg and cm |
+
+The program builder (`src/rules/program.ts`), unit conversion (`src/rules/units.ts`) and food preferences (`src/rules/foodPrefs.ts`) are pure functions with tests.
+
+```bash
+npm run dev
+npm run check:profile   # second terminal: setup → reload → edit → reload, in headless Edge
+```
+
+## Storage, accounts and privacy
+
+- **Where data lives:** everything is in this browser's IndexedDB on your device. It survives reloads, restarts and going offline, and `check:profile` and `check:offline` verify that.
+- **No accounts or server:** for one person on one phone an account adds nothing. The app has no server, no account and no secrets. The USDA key is used only by a script on your computer.
+- **Limits of local storage:** data does not sync between devices. Clearing the browser's site data, or uninstalling the installed app, deletes it. The app asks the browser to keep its storage and offers JSON export and restore.
+- **When accounts become worth it:** multiple devices, automatic backup, or paying users. The plan then is Supabase: Postgres with row-level security so each user can read only their own rows, plus a server function holding any API keys. The free tier covers one person; Pro is about $25/month. Costs get confirmed before it's set up.
+
 ## Training plan (beginner)
 
 The plan is full body, 3 days a week on non-consecutive days (default Mon/Wed/Fri), alternating sessions A and B, about 50–60 minutes each. There are gym and home (dumbbells + bench) versions; switch in *More*.
@@ -126,6 +156,14 @@ Every household measure records how its grams are known: a USDA portion weight, 
 3. Open the site on your phone: Android/Chrome shows **Install app** (also under *More*); on iPhone use Safari → Share → **Add to Home Screen**.
 
 The free plan costs nothing for a personal app. The site is public, but your data is not: it stays in each phone's browser and is never uploaded.
+
+## Known limitations
+
+- **Explanations stay in kg:** the reason text inside weekly-review suggestions and target history is written in kg, even when lb is selected. Numbers on screens and inputs follow your units.
+- **Fixed swap list:** limitation swaps cover the built-in exercises only and are not a substitute for a physiotherapist.
+- **Food preferences go by name:** a food you create named, say, "Mama's special" isn't recognised as beef.
+- **Units mid-workout:** numbers already typed into an unlogged set keep the unit they were typed in if you switch units during a workout.
+- **Not yet tested on a real phone:** checks run in headless Edge at phone size.
 
 ## Roadmap
 

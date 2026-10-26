@@ -41,6 +41,11 @@ export const EXERCISES: Exercise[] = [
     cues: ['Body in one straight line', 'Chest to fist height from the floor', 'Hands on a step or table if too hard'] },
   { id: 'db-bent-row', name: 'Dumbbell bent-over row', equipment: 'dumbbell', primary: 'back', secondary: ['biceps', 'rear delts'], perHand: true,
     cues: ['Hinge forward ~45°, flat back', 'Pull both dumbbells to your hips', 'Lower until arms are straight'] },
+  // Substitutes used when a limitation is set
+  { id: 'box-squat', name: 'Goblet squat to a box', equipment: 'dumbbell', primary: 'quads', secondary: ['glutes'],
+    cues: ['Sit back to a chair or bench at a height that feels pain-free', 'Touch lightly, don\'t drop onto it', 'Stand up by pushing through your whole foot'] },
+  { id: 'glute-bridge', name: 'Dumbbell glute bridge', equipment: 'dumbbell', primary: 'glutes', secondary: ['hamstrings'],
+    cues: ['Lie on the floor, knees bent, dumbbell on your hips', 'Squeeze your glutes to lift your hips', 'Keep your ribs down; your lower back stays relaxed'] },
   { id: 'db-hip-thrust', name: 'Dumbbell hip thrust', equipment: 'dumbbell', primary: 'glutes', secondary: ['hamstrings'],
     cues: ['Upper back on a bench or sofa edge', 'Dumbbell on hips', 'Drive hips up and squeeze, ribs down'] },
 ];

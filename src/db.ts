@@ -4,6 +4,9 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type { Activity, Sex } from './rules/nutrition';
 import type { ISODate } from './rules/dates';
+import type { AvoidCategory } from './rules/foodPrefs';
+import type { Experience, Limitation, Setting } from './rules/program';
+import type { LengthUnit, WeightUnit } from './rules/units';
 
 export type EquipmentKind = 'barbell' | 'dumbbell' | 'machine' | 'cable' | 'bodyweight';
 
@@ -14,9 +17,17 @@ export interface Settings {
   heightCm: number;
   startWeightKg: number;
   activity: Activity;
+  /** Goal as a weekly gain rate in % of body weight; 0 = recomposition (hold weight). */
   gainRatePctPerWeek: number;
+  experience: Experience;
+  setting: Setting;
   /** ISO weekdays you plan to train: 1 = Monday … 7 = Sunday. */
   trainingDays: number[];
+  sessionMinutes: number;
+  limitations: Limitation[];
+  avoidFoods: AvoidCategory[];
+  weightUnit: WeightUnit;
+  lengthUnit: LengthUnit;
   /** Smallest jump available per equipment type, kg. Edit once you know your gym. */
   increments: Record<EquipmentKind, number>;
   aiEnabled: boolean;
@@ -41,6 +52,8 @@ export interface ProgramSlot {
   repMax: number;
   targetRir: number;
   restSec: number;
+  /** Why this slot differs from the template (experience, limitation, session length). */
+  note?: string;
 }
 
 export interface ProgramDay {
@@ -208,6 +221,21 @@ db.version(1).stores({
 
 db.version(2).stores({
   measures: '++id, foodId',
+});
+
+// v3: profile fields for experience, equipment, session length, limitations, food and units.
+db.version(3).stores({}).upgrade(async (tx) => {
+  const programs = await tx.table('programs').toArray();
+  const active = programs.find((p) => p.active);
+  await tx.table('settings').toCollection().modify((s) => {
+    s.experience ??= 'new';
+    s.setting ??= active?.setting ?? 'gym';
+    s.sessionMinutes ??= 60;
+    s.limitations ??= [];
+    s.avoidFoods ??= [];
+    s.weightUnit ??= 'kg';
+    s.lengthUnit ??= 'cm';
+  });
 });
 
 /** Ask the browser not to clear this data under storage pressure. */

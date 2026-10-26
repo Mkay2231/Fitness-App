@@ -6,7 +6,8 @@ import { estimateMinutes, foodDaySummaries, getActiveProgram, nextProgramDay, op
 import { Icon } from '../icons';
 import { PlanList } from '../plan';
 import { addDays, isoWeekday, weekDates, weekStart } from '../rules/dates';
-import { fmt, fmtDate } from '../ui';
+import { Loading, fmt, fmtDate } from '../ui';
+import { useUnits } from '../units';
 
 export default function Today() {
   const date = today();
@@ -30,10 +31,11 @@ export default function Today() {
     for (let i = 2; i <= 7 && !settings.trainingDays.includes(isoWeekday(nextTraining)); i++) nextTraining = addDays(date, i);
     return { settings, program, open, openSets, doneToday, doneSets, doneDay, day, plan, food, targets, weight, week, weekDone, nextTraining };
   }, [date]);
+  const u = useUnits();
   const [weightInput, setWeightInput] = useState('');
   const [weightError, setWeightError] = useState('');
 
-  if (!data) return null;
+  if (!data) return <Loading label="Loading today" />;
   const { settings, program, open, openSets, doneToday, doneSets, doneDay, day, plan, food, targets, weight, week, weekDone, nextTraining } = data;
   const isTrainingDay = settings.trainingDays.includes(isoWeekday(date));
   const totalSets = day?.slots.reduce((n, s) => n + s.sets, 0) ?? 0;
@@ -46,8 +48,8 @@ export default function Today() {
 
   async function saveWeight(e: React.FormEvent) {
     e.preventDefault();
-    const kg = +weightInput.replace(',', '.');
-    if (!(kg >= 30 && kg <= 250)) { setWeightError('Enter your weight in kg, between 30 and 250.'); return; }
+    const kg = u.wIn(+weightInput.replace(',', '.'));
+    if (!(kg >= 30 && kg <= 250)) { setWeightError(`Enter your weight in ${u.wu} (${u.wu === 'kg' ? '30–250' : '66–550'}).`); return; }
     await db.weights.put({ date, kg });
     setWeightInput('');
     setWeightError('');
@@ -147,7 +149,7 @@ export default function Today() {
                 <Icon name="scale" />
                 <span className="grow">
                   <span className="row-title">Body weight</span>
-                  <span className="row-sub" style={{ display: 'block' }}><span className="num">{fmt(weight.kg, 1)} kg</span> logged today</span>
+                  <span className="row-sub" style={{ display: 'block' }}><span className="num">{u.w(weight.kg)}</span> logged today</span>
                 </span>
                 <Icon name="next" size="sm" />
               </Link>
@@ -155,7 +157,7 @@ export default function Today() {
               <form onSubmit={saveWeight} style={{ padding: '4px 0' }}>
                 <label htmlFor="today-weight" className="row" style={{ gap: 12, fontWeight: 600 }}><Icon name="scale" />Body weight</label>
                 <div className="row">
-                  <input id="today-weight" inputMode="decimal" placeholder="kg" value={weightInput} aria-invalid={!!weightError} aria-describedby="weight-help" onChange={(e) => setWeightInput(e.target.value)} />
+                  <input id="today-weight" inputMode="decimal" placeholder={u.wu} value={weightInput} aria-invalid={!!weightError} aria-describedby="weight-help" onChange={(e) => setWeightInput(e.target.value)} />
                   <button type="submit">Save</button>
                 </div>
                 <p id="weight-help" className={weightError ? 'hint error-text' : 'hint'}>{weightError || 'Not logged today. Weigh in the morning, after the toilet and before eating.'}</p>

@@ -1,12 +1,14 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useState } from 'react';
 import { db, type EquipmentKind, type Settings } from '../db';
-import { activateProgram, exportAll, getActiveProgram, importAll, nowISO, today } from '../data';
+import { applyProgram, exportAll, importAll, nowISO, previewProgramChange, today } from '../data';
+import { Icon } from '../icons';
 import { isIOS, isStandalone, useInstall } from '../install';
-import { initialTargets } from '../rules/nutrition';
-import { PROGRAM_TEMPLATES } from '../seed/programs';
-import { Reasons } from '../ui';
-import { ACTIVITY_OPTIONS, WEEKDAYS } from './Onboarding';
+import { initialTargets, type MacroTargets } from '../rules/nutrition';
+import { defaultIncrements, fromWeight, tidy, toWeight } from '../rules/units';
+import { Loading, Reasons } from '../ui';
+import { useUnits } from '../units';
+import ProfileForm, { draftFromSettings, profileValues, type ProfileDraft } from './ProfileForm';
 
 const EQUIP: { id: EquipmentKind; label: string; hint: string }[] = [
   { id: 'dumbbell', label: 'Dumbbells', hint: 'Jump between dumbbell pairs, per hand' },
@@ -15,22 +17,60 @@ const EQUIP: { id: EquipmentKind; label: string; hint: string }[] = [
   { id: 'cable', label: 'Cables', hint: 'One pin position on the stack' },
 ];
 
+const PROGRAM_KEYS = ['setting', 'experience', 'sessionMinutes', 'limitations'] as const;
+const TARGET_KEYS = ['sex', 'age', 'heightCm', 'activity', 'gainRatePctPerWeek'] as const;
+
+interface Pending {
+  programChanges: string[];
+  targets: { next: MacroTargets; reasons: string[]; weightKg: number } | null;
+}
+
 export default function SettingsScreen() {
   const settings = useLiveQuery(() => db.settings.get('me'));
-  const program = useLiveQuery(() => getActiveProgram());
   const persisted = useLiveQuery(async () => (await navigator.storage?.persisted?.()) ?? false);
   const [msg, setMsg] = useState('');
-  if (!settings) return null;
+  const [pending, setPending] = useState<Pending | null>(null);
+  const [formKey, setFormKey] = useState(0);
+  if (!settings) return <Loading label="Loading settings" />;
 
-  const update = (patch: Partial<Settings>) => db.settings.update('me', patch);
+  async function saveProfile(d: ProfileDraft) {
+    const s = settings!;
+    const v = profileValues(d);
+    const patch: Partial<Settings> = {
+      sex: v.sex, age: v.age, heightCm: v.heightCm, activity: v.activity, gainRatePctPerWeek: v.gainRatePctPerWeek,
+      experience: v.experience, setting: v.setting, trainingDays: v.trainingDays, sessionMinutes: v.sessionMinutes,
+      limitations: v.limitations, avoidFoods: v.avoidFoods, weightUnit: v.weightUnit, lengthUnit: v.lengthUnit,
+    };
+    // Keep weight jumps sensible when switching kg ↔ lb, unless you'd customised them.
+    if (v.weightUnit !== s.weightUnit && JSON.stringify(s.increments) === JSON.stringify(defaultIncrements(s.weightUnit))) {
+      patch.increments = defaultIncrements(v.weightUnit);
+    }
+    await db.settings.update('me', patch);
 
-  async function recalc() {
-    const latest = await db.weights.orderBy('date').last();
-    const weightKg = latest?.kg ?? settings!.startWeightKg;
-    const { targets, reasons } = initialTargets({ ...settings!, weightKg });
-    if (!confirm(`Replace your current targets with a fresh estimate: ${targets.calories} kcal, ${targets.proteinG} g protein? (Uses ${weightKg} kg.)`)) return;
-    await db.targets.add({ effectiveFrom: today(), ...targets, reasons: ['Recalculated from profile', ...reasons], createdAt: nowISO() });
-    setMsg('Targets recalculated.');
+    const programChanged = PROGRAM_KEYS.some((k) => JSON.stringify(s[k]) !== JSON.stringify(v[k]));
+    const targetsChanged = TARGET_KEYS.some((k) => s[k] !== v[k]);
+    const programChanges = programChanged ? (await previewProgramChange(v)).changes : [];
+    let targets: Pending['targets'] = null;
+    if (targetsChanged) {
+      const weightKg = (await db.weights.orderBy('date').last())?.kg ?? s.startWeightKg;
+      const t = initialTargets({ ...v, weightKg });
+      targets = { next: t.targets, reasons: t.reasons, weightKg };
+    }
+    setPending(programChanges.length || targets ? { programChanges, targets } : null);
+    setMsg('Profile saved.');
+  }
+
+  async function acceptProgram() {
+    await applyProgram(settings!);
+    setPending((p) => (p && p.targets ? { ...p, programChanges: [] } : null));
+    setMsg('Program updated. Your logged workouts are unchanged.');
+  }
+
+  async function acceptTargets() {
+    const t = pending!.targets!;
+    await db.targets.add({ effectiveFrom: today(), ...t.next, reasons: ['Recalculated after a profile change', ...t.reasons], createdAt: nowISO() });
+    setPending((p) => (p && p.programChanges.length ? { ...p, targets: null } : null));
+    setMsg('Targets updated.');
   }
 
   async function download() {
@@ -46,9 +86,10 @@ export default function SettingsScreen() {
     if (!confirm('Restoring replaces ALL data on this device with the backup. Continue?')) return;
     try {
       await importAll(await file.text());
+      setFormKey((k) => k + 1);
       setMsg('Backup restored.');
     } catch (e) {
-      setMsg(`Restore failed: ${(e as Error).message}`);
+      setMsg(`Restore failed: ${(e as Error).message} Nothing was changed.`);
     }
   }
 
@@ -56,73 +97,56 @@ export default function SettingsScreen() {
     <div className="page">
       <header className="page-head">
         <h1>Settings</h1>
-        <p className="meta">Program, weight jumps, targets and your data.</p>
+        <p className="meta">Your profile, weight jumps and data.</p>
       </header>
-      {msg && <div className="card soft" role="status">{msg}</div>}
+
+      {msg && <div className="notice" role="status"><Icon name="check" size="sm" />{msg}</div>}
+
+      {pending && (
+        <section className="panel review-changes" aria-labelledby="pending-h">
+          <h2 id="pending-h">Review changes</h2>
+          <p className="hint" style={{ marginTop: 2 }}>Your profile is saved. These follow from it, and nothing changes until you accept.</p>
+          {pending.programChanges.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <h3>Program</h3>
+              <Reasons items={pending.programChanges} />
+              <div className="row wrap" style={{ marginTop: 10 }}>
+                <button className="primary" onClick={acceptProgram}>Update program</button>
+                <button onClick={() => setPending((p) => (p && p.targets ? { ...p, programChanges: [] } : null))}>Keep current program</button>
+              </div>
+            </div>
+          )}
+          {pending.targets && (
+            <div style={{ marginTop: 16 }}>
+              <h3>Daily targets</h3>
+              <p className="small">New estimate: <strong className="num">{pending.targets.next.calories.toLocaleString('en-NG')} kcal</strong>, <strong className="num">{pending.targets.next.proteinG} g protein</strong>.</p>
+              <details><summary>How it was calculated</summary><Reasons items={pending.targets.reasons} /></details>
+              <div className="row wrap" style={{ marginTop: 6 }}>
+                <button className="primary" onClick={acceptTargets}>Use new targets</button>
+                <button onClick={() => setPending((p) => (p && p.programChanges.length ? { ...p, targets: null } : null))}>Keep current targets</button>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
       <InstallCard />
 
-      <section className="card" aria-label="Program">
-        <h2>Program</h2>
-        <select aria-label="Program" value={program?.id ?? ''} onChange={(e) => activateProgram(e.target.value)}>
-          {PROGRAM_TEMPLATES.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
-        <p className="hint">Switching keeps all your logged history. Shared exercises keep their progression.</p>
-        <div className="field" style={{ marginTop: 10 }}>
-          <label>Training days</label>
-          <div className="chips" role="group" aria-label="Training days">
-            {WEEKDAYS.map((d) => (
-              <button key={d.value} className="chip" aria-pressed={settings.trainingDays.includes(d.value)}
-                onClick={() => update({ trainingDays: settings.trainingDays.includes(d.value) ? settings.trainingDays.filter((x) => x !== d.value) : [...settings.trainingDays, d.value].sort() })}>
-                {d.label}
-              </button>
-            ))}
-          </div>
-        </div>
+      <section className="section" aria-labelledby="profile-h">
+        <h2 id="profile-h">Profile</h2>
+        <ProfileForm key={`${formKey}-${settings.weightUnit}-${settings.lengthUnit}`} initial={draftFromSettings(settings)} askWeight={false} submitLabel="Save profile" onSubmit={saveProfile} />
       </section>
 
-      <section className="card" aria-label="Weight increments">
-        <h2>Smallest weight jumps</h2>
-        <p className="muted small">Set these once you know your gym or equipment. Progression adds exactly this much.</p>
-        {EQUIP.map((e) => (
-          <div key={e.id} className="row field">
-            <label htmlFor={`inc-${e.id}`} className="grow" style={{ margin: 0 }}>{e.label}<div className="hint">{e.hint}</div></label>
-            <input id={`inc-${e.id}`} inputMode="decimal" style={{ width: 90 }} defaultValue={settings.increments[e.id]}
-              onBlur={(ev) => { const v = +ev.target.value.replace(',', '.'); if (v > 0 && v <= 20) update({ increments: { ...settings.increments, [e.id]: v } }); }} />
-            <span className="muted">kg</span>
-          </div>
-        ))}
+      <Increments settings={settings} />
+
+      <section className="panel" aria-labelledby="ai-h">
+        <h2 id="ai-h">AI explanations</h2>
+        <p className="small" style={{ marginTop: 6 }}>Off. When turned on, Claude will explain your weekly review in plain language. It reads the numbers and never changes your plan. It needs a small server function to keep the API key secret, and costs are confirmed with you first.</p>
       </section>
 
-      <section className="card" aria-label="Profile">
-        <h2>Profile and targets</h2>
-        <div className="row">
-          <div className="field grow"><label htmlFor="sa">Age</label><input id="sa" inputMode="numeric" defaultValue={settings.age} onBlur={(e) => +e.target.value > 0 && update({ age: +e.target.value })} /></div>
-          <div className="field grow"><label htmlFor="sh">Height cm</label><input id="sh" inputMode="decimal" defaultValue={settings.heightCm} onBlur={(e) => +e.target.value > 0 && update({ heightCm: +e.target.value })} /></div>
-        </div>
-        <div className="field">
-          <label htmlFor="sact">Activity</label>
-          <select id="sact" value={settings.activity} onChange={(e) => update({ activity: e.target.value as Settings['activity'] })}>
-            {ACTIVITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}: {o.hint}</option>)}
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor="sr">Gain rate (% body weight / week)</label>
-          <select id="sr" value={settings.gainRatePctPerWeek} onChange={(e) => update({ gainRatePctPerWeek: +e.target.value })}>
-            {[0.25, 0.4, 0.5].map((r) => <option key={r} value={r}>{r}%</option>)}
-          </select>
-        </div>
-        <button className="block" onClick={recalc}>Recalculate targets from profile</button>
-        <TargetHistory />
-      </section>
-
-      <section className="card" aria-label="AI explanations">
-        <h2>AI explanations</h2>
-        <p className="small">Not enabled yet. When turned on, Claude will explain your weekly review in plain language. It reads the numbers above and never changes your plan. It needs a small server function and an API key, and costs are confirmed with you before it's switched on.</p>
-      </section>
-
-      <section className="card" aria-label="Your data">
-        <h2>Your data</h2>
-        <p className="small">Everything is stored only in this browser on this device. {persisted ? 'The browser has agreed to keep it.' : 'The browser may clear it if storage runs low, so export a backup regularly.'}</p>
+      <section className="panel" aria-labelledby="data-h">
+        <h2 id="data-h">Your data</h2>
+        <p className="small" style={{ marginTop: 6 }}>Everything is stored only in this browser on this device, never on a server. {persisted ? 'The browser has agreed to keep it.' : 'The browser may clear it if storage runs low, so export a backup regularly.'}</p>
         <div className="stack">
           <button className="block" onClick={download}>Export backup (JSON)</button>
           <label className="btn block" style={{ fontWeight: 600 }}>
@@ -136,7 +160,34 @@ export default function SettingsScreen() {
           }}>Delete all data</button>
         </div>
       </section>
+
+      <TargetHistory />
     </div>
+  );
+}
+
+function Increments({ settings }: { settings: Settings }) {
+  const u = useUnits();
+  const [error, setError] = useState('');
+  return (
+    <section className="panel" aria-labelledby="inc-h">
+      <h2 id="inc-h">Smallest weight jumps</h2>
+      <p className="hint" style={{ marginTop: 2, marginBottom: 12 }}>Check these at your gym. When every set reaches the top of its range, the weight goes up by exactly this much.</p>
+      {EQUIP.map((e) => (
+        <div key={`${e.id}-${u.wu}`} className="row field">
+          <label htmlFor={`inc-${e.id}`} className="grow" style={{ margin: 0 }}>{e.label}<span className="hint" style={{ display: 'block', marginTop: 0 }}>{e.hint}</span></label>
+          <input id={`inc-${e.id}`} inputMode="decimal" style={{ width: 96 }} defaultValue={tidy(toWeight(settings.increments[e.id], u.wu), 2)}
+            onBlur={(ev) => {
+              const v = +ev.target.value.replace(',', '.');
+              const kg = fromWeight(v, u.wu);
+              if (kg > 0 && kg <= 20) { setError(''); void db.settings.update('me', { increments: { ...settings.increments, [e.id]: kg } }); }
+              else setError(`${e.label}: enter a jump between ${u.wu === 'kg' ? '0.25 and 20 kg' : '0.5 and 44 lb'}.`);
+            }} />
+          <span className="muted">{u.wu}</span>
+        </div>
+      ))}
+      {error && <p className="hint error-text" role="alert">{error}</p>}
+    </section>
   );
 }
 
@@ -144,15 +195,15 @@ function InstallCard() {
   const { canPrompt, prompt } = useInstall();
   if (isStandalone()) return null;
   return (
-    <section className="card" aria-label="Install">
-      <h2>Install on your phone</h2>
-      <p className="small">Installed, it opens like an app from your home screen and works with no internet, so you can log sets at the gym.</p>
+    <section className="panel" aria-labelledby="install-h">
+      <h2 id="install-h">Install on your phone</h2>
+      <p className="small" style={{ marginTop: 6 }}>Installed, it opens from your home screen and works with no internet, so you can log sets at the gym.</p>
       {canPrompt ? (
         <button className="primary block" onClick={prompt}>Install app</button>
       ) : isIOS() ? (
-        <p className="small">In <strong>Safari</strong>, tap the <strong>Share</strong> button, then <strong>Add to Home Screen</strong>.</p>
+        <p className="small">In <strong>Safari</strong>, tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>.</p>
       ) : (
-        <p className="small">In <strong>Chrome</strong>, open the <strong>⋮</strong> menu and tap <strong>Install app</strong> or <strong>Add to Home screen</strong>. This needs the published (https) version of the app.</p>
+        <p className="small">In <strong>Chrome</strong>, open the menu and tap <strong>Install app</strong> or <strong>Add to Home screen</strong>. This needs the published (https) version of the app.</p>
       )}
     </section>
   );
@@ -160,13 +211,14 @@ function InstallCard() {
 
 function TargetHistory() {
   const versions = useLiveQuery(() => db.targets.orderBy('effectiveFrom').reverse().toArray()) ?? [];
+  if (versions.length === 0) return null;
   return (
-    <details>
-      <summary className="small">Target history ({versions.length})</summary>
-      <ul className="list">
+    <details className="panel">
+      <summary>Target history ({versions.length})</summary>
+      <ul className="rows">
         {versions.map((v) => (
           <li key={v.id} className="small">
-            <strong>{v.effectiveFrom}</strong>: {v.calories} kcal · {v.proteinG} P · {v.carbsG} C · {v.fatG} F
+            <strong className="num">{v.effectiveFrom}</strong>: <span className="num">{v.calories} kcal · {v.proteinG} P · {v.carbsG} C · {v.fatG} F</span>
             <Reasons items={v.reasons} />
           </li>
         ))}

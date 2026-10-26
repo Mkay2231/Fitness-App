@@ -4,6 +4,7 @@ import { db, type Exercise, type FoodEntry, type Program, type ProgramDay, type 
 import { addDays, toISODate, weekDates, type ISODate } from './rules/dates';
 import { FAT_SHARE, MIN_FAT_G_PER_KG, roundTo } from './rules/nutrition';
 import { suggestNext, type ExerciseSession, type Prescription, type Suggestion } from './rules/progression';
+import { buildProgram, programChanges } from './rules/program';
 import { buildWeeklyReview, type FoodDaySummary } from './rules/review';
 import { setsByMuscle } from './rules/volume';
 import { EXERCISES } from './seed/exercises';
@@ -21,14 +22,31 @@ export async function syncBuiltIns() {
   });
 }
 
-export async function activateProgram(templateId: string) {
-  const t = PROGRAM_TEMPLATES.find((p) => p.id === templateId);
-  if (!t) throw new Error(`Unknown program ${templateId}`);
+export const EXERCISE_NAMES: Record<string, string> = Object.fromEntries(EXERCISES.map((e) => [e.id, e.name]));
+
+type ProgramProfile = Pick<Settings, 'setting' | 'experience' | 'sessionMinutes' | 'limitations'>;
+
+/** The program your profile produces (not saved). */
+export function programForProfile(p: ProgramProfile) {
+  const template = PROGRAM_TEMPLATES.find((t) => t.setting === p.setting)!;
+  return buildProgram(template, { experience: p.experience, sessionMinutes: p.sessionMinutes, limitations: p.limitations }, EXERCISE_NAMES);
+}
+
+/** What would change in your program if this profile were applied. Empty when nothing changes. */
+export async function previewProgramChange(p: ProgramProfile) {
+  const next = programForProfile(p);
+  const current = await getActiveProgram();
+  return { next, changes: programChanges(current, next, EXERCISE_NAMES) };
+}
+
+/** Saves the profile's program as the active one. Logged sessions are untouched. */
+export async function applyProgram(p: ProgramProfile) {
+  const next = programForProfile(p);
   await db.transaction('rw', db.programs, async () => {
     const existing = await db.programs.toArray();
-    await db.programs.bulkPut(existing.map((p) => ({ ...p, active: false })));
-    const prev = existing.find((p) => p.id === t.id);
-    await db.programs.put({ ...(prev ?? { ...t, createdAt: nowISO() }), active: true });
+    await db.programs.bulkPut(existing.map((x) => ({ ...x, active: false })));
+    const prev = existing.find((x) => x.id === next.id);
+    await db.programs.put({ ...next, active: true, createdAt: prev?.createdAt ?? nowISO() });
   });
 }
 
@@ -103,11 +121,7 @@ export async function planFor(day: ProgramDay, settings: Settings, excludeSessio
   }));
 }
 
-/** Rough session length: each set's work (~40 s) plus its rest, plus 5 min to warm up. */
-export function estimateMinutes(day: ProgramDay): number {
-  const sec = day.slots.reduce((s, sl) => s + sl.sets * (40 + sl.restSec), 0) + 300;
-  return Math.round(sec / 60 / 5) * 5;
-}
+export { estimateMinutes } from './rules/program';
 
 // ---------- Nutrition ----------
 

@@ -3,6 +3,8 @@ import { NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import { db } from './db';
 import { Icon, type IconName } from './icons';
 import { useOnline } from './install';
+import { Loading } from './ui';
+import { UnitsProvider } from './units';
 import Onboarding from './screens/Onboarding';
 import Today from './screens/Today';
 import Train from './screens/Train';
@@ -49,9 +51,10 @@ export default function App() {
   const online = useOnline();
   const { pathname } = useLocation();
   const inWorkout = pathname.startsWith('/workout/');
-  if (settings === undefined) return null;
+  if (settings === undefined) return <main className="main"><Loading label="Opening your data" /></main>;
   if (settings === null) return <main className="main"><div className="page"><Onboarding /></div></main>;
   return (
+    <UnitsProvider wu={settings.weightUnit ?? 'kg'} lu={settings.lengthUnit ?? 'cm'}>
     <div className="shell">
       <Sidebar />
       <main className={`main${inWorkout ? ' has-dock' : ''}`}>
@@ -71,5 +74,6 @@ export default function App() {
       {/* The active workout is a focused screen: its dock replaces the tab bar on phones. */}
       {!inWorkout && <TabBar />}
     </div>
+    </UnitsProvider>
   );
 }

@@ -31,8 +31,9 @@ try {
   await page.getByRole('button', { name: 'Male', exact: true }).click();
   await page.getByLabel('Age').fill('25');
   await page.getByLabel('Height (cm)').fill('175');
+  await page.getByLabel('Weight (kg)').fill('62');
   await page.getByRole('button', { name: 'Save and start' }).click();
-  await page.getByRole('button', { name: /Start workout|Train anyway/ }).click();
+  await page.getByRole('button', { name: /Start workout|Train today instead/ }).click();
   step('setup saved offline and workout started');
 
   await page.waitForURL(/#\/workout\//);
