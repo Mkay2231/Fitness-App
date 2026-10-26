@@ -14,7 +14,12 @@ All data stays in the browser on your device (IndexedDB). There is no server and
   - Logging weight, reps and optional reps in reserve, plus editing, adding and deleting sets.
   - A rest timer, exercise swaps, and resuming after a reload or with no signal.
 - **Progression:** transparent rules, covering first sessions, missed weeks, weight jumps and exercise changes.
-- **Food:** 40 Nigerian staples from the FAO West African table (each food cites its source), your own foods, household measures, saved meals, and days marked complete or partial.
+- **Meal plan:**
+  - **Food → Plan:** what to eat each day, chosen from the 15 meals you like (4 breakfasts, 7 main meals, 4 snacks). The meals rotate through the week, and every portion is scaled (¾ to 2×, in quarter steps) to reach your calorie target, with eggs added if protein is short.
+  - **Logging:** "I ate this" logs a meal in one tap, with Undo, and Swap changes one meal for one day.
+  - **Weekly prep:** the cook-ahead amounts for two sessions (Sunday and Wednesday) and a tickable shopping list, both in raw, as-bought weights.
+  - **Recipes** are in `src/seed/meals.ts` and the planner in `src/rules/mealPlan.ts` (tested). Portions are typical home amounts, and frying or soup oil is a labelled estimate.
+- **Food:** 58 foods from the FAO West African table (Nigerian staples, plus raw ingredients and milk powder, pasta and banana; each food cites its source), your own foods, household measures, saved meals, and days marked complete or partial.
 - **Progress:** weight trend (labelled as scale weight), measurements, workout completion and lift history.
 - **Weekly review:** a summary, planned versus completed sessions, lift comparisons, and nutrition averages from complete days only. It also lists missing data and conflicting signals, and makes at most 3 suggestions, each with its evidence and rule. You accept, reject or note each one, and the history is dated.
 - **Your data:** JSON backup and restore, CSV exports, and delete-all.
@@ -275,7 +280,11 @@ What becomes public: the app's code and the built-in food and exercise data. You
 - **Not yet on a real phone:** checks ran in headless Edge at 360–390 px against both the local build and the live site. iPhone Safari behaviour, including install and storage, is untested.
 - **Timer limits:** the rest timer only counts while the app is open. Vibration works on Android, not on iPhone.
 - **No instructions or demonstrations:** no cited source has been chosen yet, so exercises show "unavailable" rather than unsourced tips.
-- **Food gaps:** there are no composed Nigerian dishes (egusi soup, moi moi) and no recipe builder yet, and the USDA extras aren't imported until a key is set.
+- **Meal plan limits:**
+  - The 15 recipes are fixed; you can't add or edit your own yet.
+  - Portions move in quarter steps, so a day can land up to about 10% off target, and the plan says so when it does.
+  - Moi moi isn't one of the meals yet.
+  - Cook-ahead doesn't give storage times; it only says to cool quickly, refrigerate and reheat until steaming hot.
 - **Calorie evidence stays in kg:** the calorie-adjustment evidence text (weight trend vs goal) is written in kg even when lb is selected. Everything else follows your units.
 - **Fixed swap list:** limitation swaps cover the built-in exercises only and are not a substitute for a physiotherapist.
 - **Food preferences go by name:** a food you create named, say, "Mama's special" isn't recognised as beef.

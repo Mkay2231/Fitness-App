@@ -144,7 +144,7 @@ export default function Today() {
                 <span className="row-title">Food</span>
                 <span className="row-sub" style={{ display: 'block' }}>
                   {food.status === 'not-logged'
-                    ? `Not logged yet. Target ${fmt(targets?.calories ?? 0)} kcal, ${targets?.proteinG ?? '–'} g protein`
+                    ? `Not logged yet. Today's meal plan is ready (target ${fmt(targets?.calories ?? 0)} kcal, ${targets?.proteinG ?? '–'} g protein)`
                     : `${fmt(food.kcal)} of ${fmt(targets?.calories ?? 0)} kcal · ${fmt(food.proteinG)} of ${targets?.proteinG} g protein${food.status === 'complete' ? ' · complete' : ''}`}
                 </span>
               </span>

@@ -31,6 +31,12 @@ const TERMS: { id: string; group: string; title: string; text: string[] }[] = [
     'If a machine is busy or something hurts, swap for another exercise that works the same muscle. Choose today only, or update your plan.',
     'Each exercise keeps its own history, so numbers are never mixed between exercises.',
   ] },
+  { id: 'meal-plan', group: 'Food', title: 'Meal plan', text: [
+    'Each day the plan picks a breakfast, lunch, dinner and snack from the meals you like, taking turns through the week so lunch and dinner differ.',
+    'Every portion is scaled by the same amount (from ¾ to 2 portions, in quarter steps) so the day lands near your calorie target. If protein is still short, it adds 2 boiled eggs.',
+    'Amounts are raw, as bought. Recipes use typical home portions, and things like frying oil are estimates; weigh once to make them yours.',
+    'Tap “I ate this” to add the meal to your food log, or swap it for another meal you like. The week view gives the shopping list and how much to cook ahead.',
+  ] },
   { id: 'complete-day', group: 'Food', title: 'Complete food day', text: [
     'Tap “I’ve logged everything I ate” once the day is fully logged. Only complete days are used for averages and calorie advice.',
     'A day with some food logged but not marked complete is left out, because a half-logged day would make your eating look lower than it was.',

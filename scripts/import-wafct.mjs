@@ -59,6 +59,25 @@ const FOODS = {
   '09_057': 'Crayfish, dried',
   '11_004': 'Palm oil, red',
   '11_031': 'Vegetable oil',
+  // Raw ingredients, as bought: used by meal recipes, the shopping list and the cooking guide.
+  '01_036': 'Rice, white, raw',
+  '02_034': 'Yam (Nigerian varieties), raw, peeled',
+  '02_042': 'Ripe plantain, raw, peeled',
+  '02_046': 'Unripe plantain, raw, peeled',
+  '04_023': 'Efo / amaranth leaves, raw',
+  '04_018': 'Onion, raw',
+  '04_021': 'Tomato, raw',
+  '04_046': 'Chilli pepper (ata rodo / tatashe-type), raw',
+  '07_009': 'Beef, lean, raw',
+  '07_030': 'Chicken, dark meat with skin, raw',
+  '08_001': 'Egg, raw (as bought)',
+  '09_003': 'Mackerel (titus), raw',
+  '09_018': 'Catfish, raw',
+  '13_002': 'Sugar, white',
+  '10_002': 'Powdered milk, whole',
+  '10_016': 'Evaporated milk',
+  '05_003': 'Banana, ripe',
+  '01_052': 'Pasta (spaghetti or macaroni), dry',
 };
 
 const sha = createHash('sha256').update(readFileSync(FILE)).digest('hex');

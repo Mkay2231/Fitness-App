@@ -13,12 +13,9 @@ console.log(KEY === 'DEMO_KEY' ? 'Using shared DEMO_KEY (no FDC_API_KEY in .env.
 const API = 'https://api.nal.usda.gov/fdc/v1';
 
 // name: what you'll search for in the app. fdcId: exact record, or query: search SR Legacy and take the top match.
+// Milk powder, evaporated milk, pasta and banana now come from the FAO table.
 const FOODS = [
   { name: 'Groundnuts, dry-roasted', fdcId: 173806 },
-  { name: 'Powdered milk, whole', query: 'milk dry whole without added vitamin d' },
-  { name: 'Evaporated milk', query: 'milk canned evaporated without added vitamin a' },
-  { name: 'Spaghetti, cooked', query: 'spaghetti cooked enriched without added salt' },
-  { name: 'Banana', query: 'bananas raw' },
 ];
 
 async function get(url, init) {

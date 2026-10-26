@@ -44,6 +44,7 @@ export default function SettingsScreen() {
       sex: v.sex, age: v.age, heightCm: v.heightCm, activity: v.activity, gainRatePctPerWeek: v.gainRatePctPerWeek,
       experience: v.experience, setting: v.setting, trainingDays: v.trainingDays, sessionMinutes: v.sessionMinutes,
       limitations: v.limitations, avoidFoods: v.avoidFoods, weightUnit: v.weightUnit, lengthUnit: v.lengthUnit,
+      likedMeals: v.likedMeals,
     };
     // Keep weight jumps sensible when switching kg ↔ lb, unless you'd customised them.
     if (v.weightUnit !== s.weightUnit && JSON.stringify(s.increments) === JSON.stringify(defaultIncrements(s.weightUnit))) {

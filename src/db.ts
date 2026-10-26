@@ -29,6 +29,8 @@ export interface Settings {
   avoidFoods: AvoidCategory[];
   weightUnit: WeightUnit;
   lengthUnit: LengthUnit;
+  /** Meal recipes you like (ids from seed/meals). Absent means all of them. */
+  likedMeals?: string[];
   /** Smallest jump available per equipment type, kg. Edit once you know your gym. */
   increments: Record<EquipmentKind, number>;
   aiEnabled: boolean;
@@ -146,7 +148,13 @@ export interface UserMeasure {
   basis: 'weighed' | 'estimate';
 }
 
-export type MealSlot ='breakfast' | 'lunch' | 'dinner' | 'snack';
+/** A meal you swapped in the plan for one day; key like "2026-10-26:lunch". */
+export interface PlanSwap {
+  key: string;
+  recipeId: string;
+}
+
+export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
 export interface FoodEntry {
   id?: number;
@@ -157,6 +165,8 @@ export interface FoodEntry {
   /** What was typed, e.g. "2 × 1 cooking spoon", for display. */
   portionText: string;
   loggedAt: string;
+  /** Set when logged from the meal plan: the planned meal's key, e.g. "2026-10-26:lunch". */
+  fromPlan?: string;
 }
 
 export interface SavedMeal {
@@ -209,6 +219,7 @@ export const db = new Dexie('rep-ledger') as Dexie & {
   decisions: EntityTable<Decision, 'key'>;
   measures: EntityTable<UserMeasure, 'id'>;
   checkins: EntityTable<CheckIn, 'date'>;
+  planSwaps: EntityTable<PlanSwap, 'key'>;
 };
 
 db.version(1).stores({
@@ -248,6 +259,9 @@ db.version(3).stores({}).upgrade(async (tx) => {
 
 // v4: optional daily sleep, energy and soreness check-ins.
 db.version(4).stores({ checkins: 'date' });
+
+// v5: meal plan swaps.
+db.version(5).stores({ planSwaps: 'key' });
 
 /** Ask the browser not to clear this data under storage pressure. */
 export async function requestPersistentStorage(): Promise<boolean> {

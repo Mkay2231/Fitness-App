@@ -102,7 +102,7 @@ try {
   if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT, fullPage: true });
 
   await page.goto(URL);
-  await page.getByText(/Target 3,000 kcal/).waitFor();
+  await page.getByText(/target 3,000 kcal/i).waitFor();
   step('accepted change updated the calorie target to 3,000 kcal');
 
   // Optional check-in from Today

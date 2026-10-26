@@ -17,7 +17,8 @@
     "check:workout": "node scripts/workout-check.mjs",
     "check:review": "node scripts/review-check.mjs",
     "check:audit": "node scripts/audit-check.mjs",
-    "check:all": "npm run check:audit && npm run check:profile && npm run check:workout && npm run check:review",
+    "check:meals": "node scripts/meals-check.mjs",
+    "check:all": "npm run check:audit && npm run check:profile && npm run check:workout && npm run check:review && npm run check:meals",
     "foods:import": "node --env-file-if-exists=.env.local scripts/import-usda.mjs"
   },
   "dependencies": {

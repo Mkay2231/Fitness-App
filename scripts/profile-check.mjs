@@ -128,7 +128,7 @@ try {
   await page.getByRole('columnheader', { name: /lb/ }).first().waitFor();
   step('workout explains the lower-back swap and uses lb');
 
-  await page.goto(`${URL}#/food`);
+  await page.goto(`${URL}#/food?view=log`);
   await page.getByRole('button', { name: /Add to breakfast/ }).click();
   await page.getByText(/Hiding \d+ foods? you don't eat/).waitFor();
   await page.getByLabel('Search foods').fill('shaki');

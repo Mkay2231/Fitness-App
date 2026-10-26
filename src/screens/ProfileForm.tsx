@@ -6,6 +6,7 @@ import { AVOID_LABELS, type AvoidCategory } from '../rules/foodPrefs';
 import type { Activity, Sex } from '../rules/nutrition';
 import { LIMITATION_LABELS, type Experience, type Limitation, type Setting } from '../rules/program';
 import { fromLength, fromWeight, tidy, toLength, toWeight, type LengthUnit, type WeightUnit } from '../rules/units';
+import { MEALS } from '../seed/meals';
 import { Chips, onRadioKeys, radioTabIndex } from '../ui';
 
 export const WEEKDAYS = [
@@ -53,12 +54,14 @@ export interface ProfileDraft {
   avoidFoods: AvoidCategory[];
   weightUnit: WeightUnit;
   lengthUnit: LengthUnit;
+  likedMeals: string[];
 }
 
 export const EMPTY_DRAFT: ProfileDraft = {
   gainRatePctPerWeek: 0.4, sex: null, age: '', height: '', weight: '', activity: 'moderate',
   experience: 'new', setting: 'gym', trainingDays: [1, 3, 5], sessionMinutes: 60,
   limitations: [], avoidFoods: [], weightUnit: 'kg', lengthUnit: 'cm',
+  likedMeals: MEALS.map((m) => m.id),
 };
 
 export function draftFromSettings(s: Settings): ProfileDraft {
@@ -68,7 +71,7 @@ export function draftFromSettings(s: Settings): ProfileDraft {
     weight: String(tidy(toWeight(s.startWeightKg, s.weightUnit), 1)),
     activity: s.activity, experience: s.experience, setting: s.setting, trainingDays: s.trainingDays,
     sessionMinutes: s.sessionMinutes, limitations: s.limitations, avoidFoods: s.avoidFoods,
-    weightUnit: s.weightUnit, lengthUnit: s.lengthUnit,
+    weightUnit: s.weightUnit, lengthUnit: s.lengthUnit, likedMeals: s.likedMeals ?? MEALS.map((m) => m.id),
   };
 }
 
@@ -95,7 +98,7 @@ export function profileValues(d: ProfileDraft) {
     weightKg: tidy(fromWeight(n(d.weight), d.weightUnit), 2),
     activity: d.activity, gainRatePctPerWeek: d.gainRatePctPerWeek, experience: d.experience, setting: d.setting,
     trainingDays: [...d.trainingDays].sort(), sessionMinutes: d.sessionMinutes, limitations: d.limitations,
-    avoidFoods: d.avoidFoods, weightUnit: d.weightUnit, lengthUnit: d.lengthUnit,
+    avoidFoods: d.avoidFoods, weightUnit: d.weightUnit, lengthUnit: d.lengthUnit, likedMeals: d.likedMeals,
   };
 }
 
@@ -252,6 +255,15 @@ export function ProfileSections({ draft, shown, askWeight, only = ALL_SECTIONS }
               ))}
             </div>
           </Field>
+          {([['breakfast', 'Breakfasts you like'], ['main', 'Main meals you like'], ['snack', 'Snacks you like']] as const).map(([kind, label]) => (
+            <Field key={kind} label={label} why={kind === 'snack' ? 'Your meal plan picks from these. Untick any you don\'t want.' : undefined}>
+              <div className="chips" role="group" aria-label={label}>
+                {MEALS.filter((m) => m.kind === kind).map((m) => (
+                  <button key={m.id} type="button" className="chip" aria-pressed={d.likedMeals.includes(m.id)} onClick={() => set('likedMeals', toggle(d.likedMeals, m.id))}>{m.name}</button>
+                ))}
+              </div>
+            </Field>
+          ))}
         </section>
       )}
     </>

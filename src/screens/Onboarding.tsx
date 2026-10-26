@@ -119,7 +119,7 @@ const STEPS: { title: string; lead: string; sections: SectionId[] }[] = [
   { title: 'What do you want?', lead: 'Pick one. You can change it any time.', sections: ['goal'] },
   { title: 'A little about you', lead: 'This sets how much to eat. It never leaves your phone.', sections: ['units', 'body'] },
   { title: 'How you train', lead: 'This builds your workout plan.', sections: ['training'] },
-  { title: 'What you eat', lead: 'Optional. Skip it if you eat everything.', sections: ['food'] },
+  { title: 'What you eat', lead: 'Your meal plan is built from the meals you pick here.', sections: ['food'] },
 ];
 
 function Preview({ d }: { d: ProfileDraft }) {
@@ -195,7 +195,7 @@ function Setup({ onBackToWelcome }: { onBackToWelcome: () => void }) {
           id: 'me', sex: v.sex, age: v.age, heightCm: v.heightCm, startWeightKg: v.weightKg, activity: v.activity,
           gainRatePctPerWeek: v.gainRatePctPerWeek, experience: v.experience, setting: v.setting, trainingDays: v.trainingDays,
           sessionMinutes: v.sessionMinutes, limitations: v.limitations, avoidFoods: v.avoidFoods,
-          weightUnit: v.weightUnit, lengthUnit: v.lengthUnit, increments: defaultIncrements(v.weightUnit), aiEnabled: false, createdAt,
+          weightUnit: v.weightUnit, lengthUnit: v.lengthUnit, likedMeals: v.likedMeals, increments: defaultIncrements(v.weightUnit), aiEnabled: false, createdAt,
         });
       });
     } catch (err) {

@@ -37,9 +37,11 @@ const TIPS: Record<TipId, { title: string; points: string[]; help: string }> = {
     help: 'rir',
   },
   food: {
-    title: 'Logging food',
+    title: 'Planning and logging food',
     points: [
-      'Add what you eat to each meal. Use spoons, cups or wraps, or grams if you weighed it.',
+      'Plan shows what to eat today, sized to your targets. Tap “I ate this” to log a meal, or swap it.',
+      'The week view has your shopping list and how much rice, beans and stew to cook ahead.',
+      'Log is for anything else you ate: use spoons, cups or wraps, or grams if you weighed it.',
       'When the day is fully logged, tap “I’ve logged everything I ate”. Only complete days count in averages.',
       'Calories and protein are estimates from the food tables each food cites.',
     ],

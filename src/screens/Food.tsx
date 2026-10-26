@@ -7,6 +7,7 @@ import { addDays } from '../rules/dates';
 import { Icon } from '../icons';
 import { HelpLink, ScreenTip } from '../tips';
 import { useToday } from '../useToday';
+import { DayPlanView, WeekPrep } from './MealPlan';
 import { fitsPreferences, type AvoidCategory } from '../rules/foodPrefs';
 import { Chips, Loading, Sheet, fmt, fmtDate } from '../ui';
 
@@ -55,7 +56,16 @@ export default function Food() {
   const { entries, foods, totals, targets, mark, avoid } = data;
   const complete = mark?.complete === true;
   const status = complete ? 'complete' : entries.length ? 'partial' : 'not-logged';
-  const go = (d: string) => setParams(d === today() ? {} : { date: d });
+  // Keep the date and the Plan/Log view in the address, so reloads and Back keep your place.
+  const view = (params.get('view') as 'plan' | 'prep' | 'log' | null) ?? 'plan';
+  const go = (d: string, v: string = view) => {
+    const p: Record<string, string> = {};
+    if (d !== today()) p.date = d;
+    if (v !== 'plan') p.view = v;
+    setParams(p);
+  };
+  // You can plan up to a week ahead, but only log food for today or earlier.
+  const latest = view === 'log' ? today() : addDays(today(), 6);
 
   async function setComplete(value: boolean) {
     await db.foodDays.put({ date, complete: value });
@@ -77,12 +87,20 @@ export default function Food() {
         </div>
         <div className="row" style={{ gap: 4 }}>
           <button className="ghost icon-btn" aria-label="Previous day" onClick={() => go(addDays(date, -1))}><Icon name="back" /></button>
-          <button className="ghost icon-btn" aria-label="Next day" disabled={date >= today()} onClick={() => go(addDays(date, 1))}><Icon name="next" /></button>
+          <button className="ghost icon-btn" aria-label="Next day" disabled={date >= latest} onClick={() => go(addDays(date, 1))}><Icon name="next" /></button>
         </div>
       </header>
 
       <ScreenTip id="food" />
 
+      <div className="segmented" role="tablist" aria-label="Food view">
+        <button role="tab" aria-selected={view !== 'log'} onClick={() => go(date, 'plan')}>Plan</button>
+        <button role="tab" aria-selected={view === 'log'} onClick={() => go(date > today() ? today() : date, 'log')}>Log</button>
+      </div>
+
+      {view === 'plan' && <DayPlanView date={date} onShowPrep={() => go(date, 'prep')} />}
+      {view === 'prep' && <WeekPrep date={date} onBack={() => go(date, 'plan')} />}
+      {view === 'log' && (<>
       <div className="card">
         <div className="row between">
           <span className={`badge ${status === 'complete' ? 'ok' : status === 'partial' ? 'warn' : ''}`}>
@@ -148,6 +166,8 @@ export default function Food() {
           </section>
         );
       })}
+
+      </>)}
 
       {adding && <AddFood date={date} slot={adding} avoid={avoid} onClose={() => setAdding(null)} />}
     </div>

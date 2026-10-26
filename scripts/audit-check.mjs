@@ -86,7 +86,7 @@ try {
   await heading('Help');
   await inspect('Help');
 
-  for (const [route, heading] of [['train', 'Train'], ['food', 'Food'], ['progress', 'Progress'], ['review', 'Review'], ['settings', 'Settings'], ['train/edit', 'Edit programme']]) {
+  for (const [route, heading] of [['train', 'Train'], ['food', 'Food'], ['food?view=prep', 'Food'], ['food?view=log', 'Food'], ['progress', 'Progress'], ['review', 'Review'], ['settings', 'Settings'], ['train/edit', 'Edit programme']]) {
     await page.goto(`${URL}#/${route}`);
     await page.getByRole('heading', { name: heading, exact: true }).waitFor();
     await inspect(heading);

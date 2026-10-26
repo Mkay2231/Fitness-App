@@ -603,5 +603,275 @@ export const WAFCT_FOODS: Food[] = [
       "url": "https://www.fao.org/food-composition/tables-and-databases/detail/food-composition-tables/en"
     },
     "builtIn": true
+  },
+  {
+    "id": "wafct-01_036",
+    "name": "Rice, white, raw",
+    "kcal": 351,
+    "proteinG": 6.8,
+    "carbsG": 78.6,
+    "fatG": 0.6,
+    "measures": [],
+    "source": {
+      "kind": "reference",
+      "citation": "FAO/INFOODS Food Composition Table for Western Africa (2019), © FAO 2020, code 01_036: \"Rice, white, polished, raw\"",
+      "url": "https://www.fao.org/food-composition/tables-and-databases/detail/food-composition-tables/en"
+    },
+    "builtIn": true
+  },
+  {
+    "id": "wafct-02_034",
+    "name": "Yam (Nigerian varieties), raw, peeled",
+    "kcal": 129,
+    "proteinG": 1.8,
+    "carbsG": 27.2,
+    "fatG": 0.1,
+    "measures": [],
+    "source": {
+      "kind": "reference",
+      "citation": "FAO/INFOODS Food Composition Table for Western Africa (2019), © FAO 2020, code 02_034: \"Yam, tuber, combined cultivars, raw (Nigeria)\" (some values are lower-quality estimates in the source)",
+      "url": "https://www.fao.org/food-composition/tables-and-databases/detail/food-composition-tables/en"
+    },
+    "builtIn": true
+  },
+  {
+    "id": "wafct-02_042",
+    "name": "Ripe plantain, raw, peeled",
+    "kcal": 143,
+    "proteinG": 1.4,
+    "carbsG": 32.9,
+    "fatG": 0.2,
+    "measures": [],
+    "source": {
+      "kind": "reference",
+      "citation": "FAO/INFOODS Food Composition Table for Western Africa (2019), © FAO 2020, code 02_042: \"Plantain, ripe, ivory flesh, raw\" (some values are lower-quality estimates in the source)",
+      "url": "https://www.fao.org/food-composition/tables-and-databases/detail/food-composition-tables/en"
+    },
+    "builtIn": true
+  },
+  {
+    "id": "wafct-02_046",
+    "name": "Unripe plantain, raw, peeled",
+    "kcal": 158,
+    "proteinG": 1.9,
+    "carbsG": 31.9,
+    "fatG": 1.1,
+    "measures": [],
+    "source": {
+      "kind": "reference",
+      "citation": "FAO/INFOODS Food Composition Table for Western Africa (2019), © FAO 2020, code 02_046: \"Plantain, unripe, ivory flesh, raw\" (some values are lower-quality estimates in the source)",
+      "url": "https://www.fao.org/food-composition/tables-and-databases/detail/food-composition-tables/en"
+    },
+    "builtIn": true
+  },
+  {
+    "id": "wafct-04_023",
+    "name": "Efo / amaranth leaves, raw",
+    "kcal": 40,
+    "proteinG": 4.1,
+    "carbsG": 3,
+    "fatG": 0.4,
+    "measures": [],
+    "source": {
+      "kind": "reference",
+      "citation": "FAO/INFOODS Food Composition Table for Western Africa (2019), © FAO 2020, code 04_023: \"Amaranth, leaves, fresh, raw\" (some values are lower-quality estimates in the source)",
+      "url": "https://www.fao.org/food-composition/tables-and-databases/detail/food-composition-tables/en"
+    },
+    "builtIn": true
+  },
+  {
+    "id": "wafct-04_018",
+    "name": "Onion, raw",
+    "kcal": 37,
+    "proteinG": 1.1,
+    "carbsG": 7.1,
+    "fatG": 0.1,
+    "measures": [],
+    "source": {
+      "kind": "reference",
+      "citation": "FAO/INFOODS Food Composition Table for Western Africa (2019), © FAO 2020, code 04_018: \"Onion, fresh, raw\" (some values are lower-quality estimates in the source)",
+      "url": "https://www.fao.org/food-composition/tables-and-databases/detail/food-composition-tables/en"
+    },
+    "builtIn": true
+  },
+  {
+    "id": "wafct-04_021",
+    "name": "Tomato, raw",
+    "kcal": 22,
+    "proteinG": 1.1,
+    "carbsG": 3.4,
+    "fatG": 0.2,
+    "measures": [],
+    "source": {
+      "kind": "reference",
+      "citation": "FAO/INFOODS Food Composition Table for Western Africa (2019), © FAO 2020, code 04_021: \"Tomato, red, ripe, raw\" (some values are lower-quality estimates in the source)",
+      "url": "https://www.fao.org/food-composition/tables-and-databases/detail/food-composition-tables/en"
+    },
+    "builtIn": true
+  },
+  {
+    "id": "wafct-04_046",
+    "name": "Chilli pepper (ata rodo / tatashe-type), raw",
+    "kcal": 47,
+    "proteinG": 1.8,
+    "carbsG": 7.5,
+    "fatG": 0.3,
+    "measures": [],
+    "source": {
+      "kind": "reference",
+      "citation": "FAO/INFOODS Food Composition Table for Western Africa (2019), © FAO 2020, code 04_046: \"Pepper, chilli, fresh, raw\" (some values are lower-quality estimates in the source)",
+      "url": "https://www.fao.org/food-composition/tables-and-databases/detail/food-composition-tables/en"
+    },
+    "builtIn": true
+  },
+  {
+    "id": "wafct-07_009",
+    "name": "Beef, lean, raw",
+    "kcal": 131,
+    "proteinG": 22.5,
+    "carbsG": 0,
+    "fatG": 4.6,
+    "measures": [],
+    "source": {
+      "kind": "reference",
+      "citation": "FAO/INFOODS Food Composition Table for Western Africa (2019), © FAO 2020, code 07_009: \"Beef meat, lean, ca. 5% fat, raw\"",
+      "url": "https://www.fao.org/food-composition/tables-and-databases/detail/food-composition-tables/en"
+    },
+    "builtIn": true
+  },
+  {
+    "id": "wafct-07_030",
+    "name": "Chicken, dark meat with skin, raw",
+    "kcal": 232,
+    "proteinG": 16.7,
+    "carbsG": 0,
+    "fatG": 18.3,
+    "measures": [],
+    "source": {
+      "kind": "reference",
+      "citation": "FAO/INFOODS Food Composition Table for Western Africa (2019), © FAO 2020, code 07_030: \"Chicken, dark meat with skin, raw\"",
+      "url": "https://www.fao.org/food-composition/tables-and-databases/detail/food-composition-tables/en"
+    },
+    "builtIn": true
+  },
+  {
+    "id": "wafct-08_001",
+    "name": "Egg, raw (as bought)",
+    "kcal": 150,
+    "proteinG": 13.5,
+    "carbsG": 0.2,
+    "fatG": 10.6,
+    "measures": [],
+    "source": {
+      "kind": "reference",
+      "citation": "FAO/INFOODS Food Composition Table for Western Africa (2019), © FAO 2020, code 08_001: \"Egg, chicken, raw\" (some values are lower-quality estimates in the source)",
+      "url": "https://www.fao.org/food-composition/tables-and-databases/detail/food-composition-tables/en"
+    },
+    "builtIn": true
+  },
+  {
+    "id": "wafct-09_003",
+    "name": "Mackerel (titus), raw",
+    "kcal": 120,
+    "proteinG": 19.6,
+    "carbsG": 0,
+    "fatG": 4.6,
+    "measures": [],
+    "source": {
+      "kind": "reference",
+      "citation": "FAO/INFOODS Food Composition Table for Western Africa (2019), © FAO 2020, code 09_003: \"Mackerel, fillet, raw\"",
+      "url": "https://www.fao.org/food-composition/tables-and-databases/detail/food-composition-tables/en"
+    },
+    "builtIn": true
+  },
+  {
+    "id": "wafct-09_018",
+    "name": "Catfish, raw",
+    "kcal": 101,
+    "proteinG": 16.5,
+    "carbsG": 0,
+    "fatG": 3.8,
+    "measures": [],
+    "source": {
+      "kind": "reference",
+      "citation": "FAO/INFOODS Food Composition Table for Western Africa (2019), © FAO 2020, code 09_018: \"Catfish, fillet, raw\"",
+      "url": "https://www.fao.org/food-composition/tables-and-databases/detail/food-composition-tables/en"
+    },
+    "builtIn": true
+  },
+  {
+    "id": "wafct-13_002",
+    "name": "Sugar, white",
+    "kcal": 400,
+    "proteinG": 0,
+    "carbsG": 100,
+    "fatG": 0,
+    "measures": [],
+    "source": {
+      "kind": "reference",
+      "citation": "FAO/INFOODS Food Composition Table for Western Africa (2019), © FAO 2020, code 13_002: \"Sugar, white\"",
+      "url": "https://www.fao.org/food-composition/tables-and-databases/detail/food-composition-tables/en"
+    },
+    "builtIn": true
+  },
+  {
+    "id": "wafct-10_002",
+    "name": "Powdered milk, whole",
+    "kcal": 493,
+    "proteinG": 25.8,
+    "carbsG": 37.3,
+    "fatG": 26.8,
+    "measures": [],
+    "source": {
+      "kind": "reference",
+      "citation": "FAO/INFOODS Food Composition Table for Western Africa (2019), © FAO 2020, code 10_002: \"Milk, cow, powder, whole, unfortified\" (some values are lower-quality estimates in the source)",
+      "url": "https://www.fao.org/food-composition/tables-and-databases/detail/food-composition-tables/en"
+    },
+    "builtIn": true
+  },
+  {
+    "id": "wafct-10_016",
+    "name": "Evaporated milk",
+    "kcal": 157,
+    "proteinG": 7.4,
+    "carbsG": 12.6,
+    "fatG": 8.6,
+    "measures": [],
+    "source": {
+      "kind": "reference",
+      "citation": "FAO/INFOODS Food Composition Table for Western Africa (2019), © FAO 2020, code 10_016: \"Milk, cow, canned, evaporated\"",
+      "url": "https://www.fao.org/food-composition/tables-and-databases/detail/food-composition-tables/en"
+    },
+    "builtIn": true
+  },
+  {
+    "id": "wafct-05_003",
+    "name": "Banana, ripe",
+    "kcal": 121,
+    "proteinG": 1.3,
+    "carbsG": 27.7,
+    "fatG": 0.2,
+    "measures": [],
+    "source": {
+      "kind": "reference",
+      "citation": "FAO/INFOODS Food Composition Table for Western Africa (2019), © FAO 2020, code 05_003: \"Banana, white flesh, ripe, raw\"",
+      "url": "https://www.fao.org/food-composition/tables-and-databases/detail/food-composition-tables/en"
+    },
+    "builtIn": true
+  },
+  {
+    "id": "wafct-01_052",
+    "name": "Pasta (spaghetti or macaroni), dry",
+    "kcal": 358,
+    "proteinG": 12.3,
+    "carbsG": 72.2,
+    "fatG": 1.5,
+    "measures": [],
+    "source": {
+      "kind": "reference",
+      "citation": "FAO/INFOODS Food Composition Table for Western Africa (2019), © FAO 2020, code 01_052: \"Macaroni, dry, unfortified\"",
+      "url": "https://www.fao.org/food-composition/tables-and-databases/detail/food-composition-tables/en"
+    },
+    "builtIn": true
   }
 ];

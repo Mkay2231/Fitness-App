@@ -388,3 +388,23 @@ details > summary.danger-summary { color: var(--danger); }
 
 /* Headings that receive focus programmatically (step changes) aren't controls: no ring. */
 h1[tabindex='-1']:focus { outline: none; }
+
+/* ---------- Meal plan ---------- */
+.segmented { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; background: var(--surface-sunk); border-radius: var(--r); margin-bottom: 16px; }
+.segmented button { border: 0; background: transparent; min-height: 44px; border-radius: var(--r-sm); color: var(--muted); }
+.segmented button[aria-selected='true'] { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgb(32 36 32 / 0.08); }
+.meal-card.is-logged { border-color: var(--accent-wash); }
+.ingredients { list-style: none; margin: 4px 0 8px; padding: 0; }
+.ingredients li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-top: 1px solid var(--border); font-size: 0.9375rem; }
+.ingredients li:first-child { border-top: 0; }
+.swap-select { flex: 1 1 160px; min-width: 0; margin: 0; }
+.swap-select select { min-height: 44px; width: 100%; }
+.cook-group { margin-top: 8px; padding: 10px 12px; background: var(--surface-sunk); border-radius: var(--r-sm); }
+.cook-group .ingredients li { border-color: var(--border); }
+.shop-list { list-style: none; margin: 8px 0 0; padding: 0; }
+.shop-list li { border-top: 1px solid var(--border); }
+.shop-list li:first-child { border-top: 0; }
+.shop-list label { display: flex; align-items: center; gap: 12px; min-height: 48px; margin: 0; font-weight: 500; cursor: pointer; }
+.shop-list input { width: 22px; height: 22px; min-height: 0; accent-color: var(--accent); flex: none; }
+.shop-list label.done span { color: var(--muted); text-decoration: line-through; }
+.ingredients .num, .shop-list .num { white-space: nowrap; }
